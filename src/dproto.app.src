@@ -1,6 +1,6 @@
-{application, mproto,
+{application, dproto,
  [
-  {description, ""},
+  {description, "Protocols for dalmatinadb"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications, [
