@@ -1,0 +1,8 @@
+-define(KEEPALIVE, 0).
+-define(PUT, 0).
+-define(LIST, 1).
+-define(GET, 2).
+-define(BUCKET_SIZE, 8).
+-define(METRIC_ELEM_SIZE, 8).
+-define(METRIC_SIZE, 16).
+-define(DATA_SIZE, 16).

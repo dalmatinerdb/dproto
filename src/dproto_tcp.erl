@@ -1,11 +1,8 @@
 -module(dproto_tcp).
 
--define(BUCKET_SIZE, 8).
--define(METRIC_ELEM_SIZE, 8).
--define(METRIC_SIZE, 16).
+-include("dproto.hrl").
 
 -export([encode_metrics/1, decode_metrics/1, encode_get/4, decode_get/1, decode_list/1]).
--ignore_xref([encode_metrics/1, decode_metrics/1, encode_get/4, decode_get/1]).
 
 encode_metrics(Ms) ->
     Data = << <<(byte_size(M)):?METRIC_SIZE/integer, M/binary>> ||  M <- Ms >>,
@@ -38,4 +35,3 @@ decode_list(<<_LB:?BUCKET_SIZE/integer, B:_LB/binary>>) ->
 %%     decode_metric(R, [M, Acc]);
 %% decode_metric(<<>>, Acc) ->
 %%     lists:reverse(Acc).
-
