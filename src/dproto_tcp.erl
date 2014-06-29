@@ -2,7 +2,11 @@
 
 -include("dproto.hrl").
 
--export([encode_metrics/1, decode_metrics/1, encode_get/4, decode_get/1, decode_list/1]).
+-export([
+         encode_metrics/1, decode_metrics/1,
+         encode_get/4, decode_get/1,
+         decode_list/1, encode_list/1
+        ]).
 
 encode_metrics(Ms) ->
     Data = << <<(byte_size(M)):?METRIC_SS/integer, M/binary>> ||  M <- Ms >>,
@@ -30,6 +34,10 @@ encode_get(B, M, T, C) ->
 
 decode_list(<<_LB:?BUCKET_SS/integer, B:_LB/binary>>) ->
     B.
+
+encode_list(Bucket) ->
+    <<(byte_size(Bucket)):?BUCKET_SS/integer, Bucket/binary>>.
+
 
 %% decode_metric(<<_L:?METRIC_ELEM_SIZE/integer, M:_L/binary, R/binary>>, Acc) ->
 %%     decode_metric(R, [M, Acc]);
