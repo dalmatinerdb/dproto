@@ -28,6 +28,10 @@ prop_encode_decode_get() ->
     ?FORALL({B, M, T, C}, {non_empty_binary(), non_empty_binary(), choose(0, 5000), choose(1, 5000)},
             {B, M, T, C} == dproto_tcp:decode_get(dproto_tcp:encode_get(B, M, T, C))).
 
+prop_encode_decode_list() ->
+    ?FORALL(B, non_empty_binary(),
+            B == dproto_tcp:decode_list(dproto_tcp:encode_list(B))).
+
 -include("eqc_helper.hrl").
 -endif.
 -endif.
