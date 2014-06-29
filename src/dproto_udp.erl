@@ -13,4 +13,4 @@ encode_points(Bucket, Metric, Time, Points) when is_binary(Points) ->
     <<Time:?TIME_SIZE/integer,
       (byte_size(Bucket)):?BUCKET_SS/integer, Bucket/binary,
       (byte_size(Metric)):?METRIC_SS/integer, Metric/binary,
-      (byte_size(Metric)):?DATA_SS/integer, Points/binary>>.
+      (byte_size(Points)):?DATA_SS/integer, Points/binary>>.
