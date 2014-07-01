@@ -38,7 +38,6 @@ decode_list(<<_LB:?BUCKET_SS/integer, B:_LB/binary>>) ->
 encode_list(Bucket) ->
     <<(byte_size(Bucket)):?BUCKET_SS/integer, Bucket/binary>>.
 
-
 %% decode_metric(<<_L:?METRIC_ELEM_SIZE/integer, M:_L/binary, R/binary>>, Acc) ->
 %%     decode_metric(R, [M, Acc]);
 %% decode_metric(<<>>, Acc) ->
