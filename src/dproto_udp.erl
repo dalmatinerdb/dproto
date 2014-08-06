@@ -17,4 +17,3 @@ encode_points(Metric, Time, Points) when is_binary(Points) ->
     <<Time:?TIME_SIZE/integer,
       (byte_size(Metric)):?METRIC_SS/integer, Metric/binary,
       (byte_size(Points)):?DATA_SS/integer, Points/binary>>.
-
