@@ -1,5 +1,6 @@
 -module(dproto_tcp).
 
+-include_lib("mmath/include/mmath.hrl").
 -include("dproto.hrl").
 
 -export([
@@ -47,11 +48,14 @@ encode_start_stream(Delay, Bucket) when Delay > 0, Delay < 256,
 encode_stream_flush() ->
     <<?SWRITE>>.
 
-encode_stream_payload(Metric, Time, Points) when is_integer(Points) ->
-    encode_stream_payload(Metric, Time, encode_metrics([Points]));
+encode_stream_payload(Metric, Time, Point) when is_integer(Point) ->
+    encode_stream_payload(Metric, Time,
+                          <<?INT:?TYPE_SIZE, Point:?BITS/?INT_TYPE>>);
 
 encode_stream_payload(Metric, Time, Points) when is_list(Points) ->
-    encode_stream_payload(Metric, Time, encode_metrics(Points));
+    encode_stream_payload(Metric, Time, 
+                          << <<?INT:?TYPE_SIZE, V:?BITS/?INT_TYPE>> ||
+                              V <-  Points >>);
 
 encode_stream_payload(Metric, Time, Points) when is_binary(Points),
                                                  is_binary(Metric) ->
