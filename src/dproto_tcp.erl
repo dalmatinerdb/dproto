@@ -9,7 +9,8 @@
          decode_list/1, encode_list/1,
          encode_start_stream/2,
          encode_stream_flush/0,
-         encode_stream_payload/3
+         encode_stream_payload/3,
+         encode_points/1
         ]).
 
 encode_metrics(Ms) ->
@@ -48,18 +49,17 @@ encode_start_stream(Delay, Bucket) when Delay > 0, Delay < 256,
 encode_stream_flush() ->
     <<?SWRITE>>.
 
-encode_stream_payload(Metric, Time, Point) when is_integer(Point) ->
-    encode_stream_payload(Metric, Time,
-                          <<?INT:?TYPE_SIZE, Point:?BITS/?INT_TYPE>>);
-
-encode_stream_payload(Metric, Time, Points) when is_list(Points) ->
-    encode_stream_payload(Metric, Time, 
-                          << <<?INT:?TYPE_SIZE, V:?BITS/?INT_TYPE>> ||
-                              V <-  Points >>);
-
-encode_stream_payload(Metric, Time, Points) when is_binary(Points),
-                                                 is_binary(Metric) ->
+encode_stream_payload(Metric, Time, Points) when is_binary(Metric) ->
+    PointsB = encode_points(Points),
     <<?SENTRY,
       Time:?TIME_SIZE/integer,
       (byte_size(Metric)):?METRIC_SS/integer, Metric/binary,
-      (byte_size(Points)):?DATA_SS/integer, Points/binary>>.
+      (byte_size(PointsB)):?DATA_SS/integer, PointsB/binary>>.
+
+encode_points(Point) when is_integer(Point) ->
+    <<?INT:?TYPE_SIZE, Point:?BITS/?INT_TYPE>>;
+encode_points(Points) when is_list(Points) ->
+    << <<?INT:?TYPE_SIZE, V:?BITS/?INT_TYPE>> || V <-  Points >>;
+encode_points(Points) when is_binary(Points) ->
+    Points.
+
