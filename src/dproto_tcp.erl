@@ -47,6 +47,9 @@ encode_start_stream(Delay, Bucket) when Delay > 0, Delay < 256,
 encode_stream_flush() ->
     <<?SWRITE>>.
 
+encode_stream_payload(Metric, Time, Points) when is_integer(Points) ->
+    encode_stream_payload(Metric, Time, encode_metrics([Points]));
+
 encode_stream_payload(Metric, Time, Points) when is_list(Points) ->
     encode_stream_payload(Metric, Time, encode_metrics(Points));
 
