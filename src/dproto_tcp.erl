@@ -5,15 +5,29 @@
 
 -export([
          encode_metrics/1, decode_metrics/1,
-         encode_get_req/4,
-         decode_get_req/1,
-         decode_list/1, encode_list/1,
-         encode_start_stream/2,
-         encode_stream_flush/0,
-         encode_stream_payload/3,
          encode/1,
-         decode/1
+         decode/1,
+         decode_stream/1
         ]).
+
+-type stream_message() ::
+        {stream,
+         Metric :: binary(),
+         Time :: pos_integer(),
+         Points :: binary()} |
+        flush.
+
+-type tcp_message() ::
+        buckets |
+        {list, Bucket :: binary()} |
+        {get,
+         Bucket :: binary(),
+         Metric :: binary(),
+         Time :: pos_integer(),
+         Count :: pos_integer()} |
+        {stream,
+         Bucket :: binary(),
+         Delay :: pos_integer()}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -53,44 +67,18 @@ encode_metrics(Metrics) when is_list(Metrics) ->
 decode_metrics(<<_Size:?METRICS_SS/?SIZE_TYPE, Metrics:_Size/binary>>) ->
     [ Metric || <<_S:?METRIC_SS/?SIZE_TYPE, Metric :_S/binary>> <= Metrics].
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Encodes a message for the binary protocol.
+%%
+%% @spec encode(tcp_message() | stream_message()) ->
+%%                     binary()
+%%
+%% @end
+%%--------------------------------------------------------------------
 
-
-
-encode_get_req(B, M, T, C) ->
-    <<(byte_size(B)):?BUCKET_SS/?SIZE_TYPE, B/binary,
-      (byte_size(M)):?METRIC_SS/?SIZE_TYPE, M/binary,
-      T:?TIME_SIZE/?SIZE_TYPE, C:?COUNT_SIZE/?SIZE_TYPE>>.
-
-decode_get_req(<<_LB:?BUCKET_SS/?SIZE_TYPE, Bucket:_LB/binary,
-                 _LM:?METRIC_SS/?SIZE_TYPE, Metric:_LM/binary,
-                 Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE>>) ->
-    {Bucket, Metric, Time, Count}.
-
-decode_list(<<_LB:?BUCKET_SS/?SIZE_TYPE, B:_LB/binary>>) ->
-    B.
-
-encode_list(Bucket) ->
-    <<(byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>.
-
-encode_start_stream(Delay, Bucket) when
-      is_integer(Delay), Delay > 0, Delay < 256,
-      is_binary(Bucket) ->
-    <<?STREAM, Delay:8, Bucket/binary>>.
-
-encode_stream_flush() ->
-    <<?SWRITE>>.
-
-encode_stream_payload(Metric, Time, Points) when is_list(Metric) ->
-    encode_stream_payload(dproto:metric_from_list(Metric), Time, Points);
-
-encode_stream_payload(Metric, Time, Points) when is_binary(Metric) ->
-    PointsB = dproto:encode_points(Points),
-    <<?SENTRY,
-      Time:?TIME_SIZE/?SIZE_TYPE,
-      (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
-      (byte_size(PointsB)):?DATA_SS/?SIZE_TYPE, PointsB/binary>>.
-
-
+-spec encode(tcp_message() | stream_message()) ->
+                    binary().
 encode(buckets) ->
     <<?BUCKETS>>;
 
@@ -127,6 +115,20 @@ encode({stream, Metric, Time, Points}) when
 encode(flush) ->
     <<?SWRITE>>.
 
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Decodes a normal TCP message from the wire protocol.
+%%
+%% @spec decode(binary()) ->
+%%                     tcp_message()
+%%
+%% @end
+%%--------------------------------------------------------------------
+
+-spec decode(binary()) ->
+                    tcp_message().
+
 decode(<<?BUCKETS>>) ->
     buckets;
 
@@ -142,14 +144,31 @@ decode(<<?GET,
 decode(<<?STREAM,
          Delay:?DELAY_SIZE/?SIZE_TYPE,
          _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary>>) ->
-    {stream, Bucket, Delay};
-decode(<<?SENTRY,
-         Time:?TIME_SIZE/?SIZE_TYPE,
-         _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
-         _PointsSize:?DATA_SS/?SIZE_TYPE, Points:_PointsSize/binary>>) ->
-    {stream, Metric, Time, Points};
+    {stream, Bucket, Delay}.
 
 
-decode(<<?SWRITE>>) ->
-    flush.
+%%--------------------------------------------------------------------
+%% @doc
+%% Decodes a streaming TCP message from the wire protocol.
+%%
+%% @spec decode(binary()) ->
+%%                     tcp_message()
+%%
+%% @end
+%%--------------------------------------------------------------------
 
+-spec decode_stream(binary()) ->
+                           stream_message().
+
+decode_stream(<<?SWRITE, Rest/binary>>) ->
+    {flush, Rest};
+
+decode_stream(<<?SENTRY,
+                Time:?TIME_SIZE/?SIZE_TYPE,
+                _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
+                _PointsSize:?DATA_SS/?SIZE_TYPE, Points:_PointsSize/binary,
+                Rest/binary>>) ->
+    {{stream, Metric, Time, Points}, Rest};
+
+decode_stream(<<?SENTRY, _/binary>> = Rest) ->
+    {incomplete, Rest}.

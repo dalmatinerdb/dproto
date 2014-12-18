@@ -72,8 +72,7 @@ points() ->
 tpc_msg() ->
     oneof([
            buckets,
-           {list, bucket()},
-           flush
+           {list, bucket()}
           ]).
 
 valid_delay(_Delay) when is_integer(_Delay), _Delay > 0, _Delay < 256 ->
@@ -132,11 +131,12 @@ prop_encode_decode_stream() ->
             end).
 
 prop_encode_decode_stream_entry() ->
-    ?FORALL(Msg = {stream, _, Time, Points}, {stream, metric(), mtime(), points()},
+    ?FORALL(Msg = {stream, _, Time, Points},
+            {stream, metric(), mtime(), points()},
             case valid_time(Time) andalso valid_points(Points) of
                 true ->
                     Encoded = dproto_tcp:encode(Msg),
-                    Decoded = dproto_tcp:decode(Encoded),
+                    {Decoded, <<>>} = dproto_tcp:decode_stream(Encoded),
                     ?WHENFAIL(
                        io:format(user,
                                  "~p -> ~p -> ~p~n",
@@ -171,14 +171,6 @@ prop_encode_decode_metrics() ->
                 L2 = lists:sort(Rev),
                 L1 == L2
             end).
-
-prop_encode_decode_get_req() ->
-    ?FORALL({B, M, T, C}, {non_empty_binary(), non_empty_binary(), choose(0, 5000), choose(1, 5000)},
-            {B, M, T, C} == dproto_tcp:decode_get_req(dproto_tcp:encode_get_req(B, M, T, C))).
-
-prop_encode_decode_list() ->
-    ?FORALL(B, non_empty_binary(),
-            B == dproto_tcp:decode_list(dproto_tcp:encode_list(B))).
 
 -endif.
 -endif.
