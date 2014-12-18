@@ -146,22 +146,6 @@ prop_encode_decode_stream_entry() ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).
 
-prop_encode_decode_put() ->
-    ?FORALL(Msg = {put, _, _, Time, Points},
-            {put, bucket(), metric(), mtime(), points()},
-            case valid_time(Time) andalso valid_points(Points) of
-                true ->
-                    Encoded = dproto_tcp:encode(Msg),
-                    Decoded = dproto_tcp:decode(Encoded),
-                    ?WHENFAIL(
-                       io:format(user,
-                                 "~p -> ~p -> ~p~n",
-                                 [Msg, Encoded, Decoded]),
-                       Msg =:= Decoded);
-                _ ->
-                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
-            end).
-
 prop_encode_decode_get() ->
     ?FORALL(Msg = {get, _, _, Time, Count},
             {get, bucket(), metric(), mtime(), count()},

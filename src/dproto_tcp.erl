@@ -108,15 +108,6 @@ encode({get, Bucket, Metric, Time, Count}) when
       (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
       Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE>>;
 
-encode({put, Bucket, Metric, Time, Points}) when
-      is_binary(Bucket), is_binary(Metric), is_binary(Points),
-      is_integer(Time), Time >= 0 ->
-    <<?PUT,
-      Time:?TIME_SIZE/?SIZE_TYPE,
-      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
-      (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
-      (byte_size(Points)):?DATA_SS/?SIZE_TYPE, Points/binary>>;
-
 encode({stream, Bucket, Delay}) when
       is_binary(Bucket),
       is_integer(Delay), Delay > 0, Delay < 256->
@@ -147,12 +138,6 @@ decode(<<?GET,
          _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE>>) ->
     {get, Bucket, Metric, Time, Count};
-decode(<<?PUT,
-         Time:?TIME_SIZE/?SIZE_TYPE,
-         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
-         _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
-         _PointsSize:?DATA_SS/?SIZE_TYPE, Points:_PointsSize/binary>>) ->
-    {put, Bucket, Metric, Time, Points};
 
 decode(<<?STREAM,
          Delay:?DELAY_SIZE/?SIZE_TYPE,
