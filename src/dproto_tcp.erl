@@ -170,5 +170,8 @@ decode_stream(<<?SENTRY,
                 Rest/binary>>) ->
     {{stream, Metric, Time, Points}, Rest};
 
+decode_stream(<<>>) ->
+    {incomplete, <<>>};
+
 decode_stream(<<?SENTRY, _/binary>> = Rest) ->
     {incomplete, Rest}.
