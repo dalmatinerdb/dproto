@@ -158,7 +158,7 @@ decode(<<?STREAM,
 %%--------------------------------------------------------------------
 
 -spec decode_stream(binary()) ->
-                           stream_message().
+                           {stream_message() | incomplete, binary()}.
 
 decode_stream(<<?SWRITE, Rest/binary>>) ->
     {flush, Rest};
