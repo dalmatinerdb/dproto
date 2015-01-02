@@ -6,15 +6,14 @@
 -export([
          metric_from_list/1,
          metric_to_list/1,
-         metric_to_string/2,
-         encode_metrics/1,
-         decode_metrics/1
+         metric_to_string/2
         ]).
 
--export_type([metric_list/0, metric/0]).
+-export_type([metric_list/0, metric/0, bucket/0]).
 
 -type metric_list() :: [binary()].
 -type metric() :: binary().
+-type bucket() :: binary().
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -74,36 +73,3 @@ metric_to_string(Metric, Seperator) ->
             <<_Size:?METRIC_ELEMENT_SS/?SIZE_TYPE, M:_Size/binary>>
                 <= Metric >>,
     Result.
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Encodes a list of metrics to it's binary representaiton.
-%%
-%% @spec encode_metrics(Metrics :: [binary()]) ->
-%%                             binary()
-%% @end
-%%--------------------------------------------------------------------
-
--spec encode_metrics(Metrics :: [binary()]) ->
-                            binary().
-
-encode_metrics(Metrics) when is_list(Metrics) ->
-    << <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary>>
-       || Metric <- Metrics >>.
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Decodes a binary representation of a list of metrics to a list.
-%%
-%% @spec decode_metrics(Metrics :: binary()) ->
-%%                             [binary()]
-%%
-%% @end
-%%--------------------------------------------------------------------
-
--spec decode_metrics(Metrics :: binary()) ->
-                            [binary()].
-
-decode_metrics(Metrics) when is_binary(Metrics) ->
-    [Metric || <<_MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary>>
-                   <= Metrics ].

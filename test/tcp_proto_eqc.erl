@@ -69,10 +69,15 @@ bad_points() ->
 points() ->
     fault(bad_points(), good_points()).
 
-tpc_msg() ->
+pos_int() ->
+    ?SUCHTHAT(I, int(), I > 0).
+
+tcp_msg() ->
     oneof([
            buckets,
-           {list, bucket()}
+           {list, bucket()},
+           {info, bucket()},
+           {add, bucket(), pos_int(), pos_int()}
           ]).
 
 valid_delay(_Delay) when is_integer(_Delay), _Delay > 0, _Delay < 256 ->
@@ -104,7 +109,7 @@ valid_points(_) ->
     false.
 
 prop_encode_decode_general() ->
-    ?FORALL(Msg, tpc_msg(),
+    ?FORALL(Msg, tcp_msg(),
             begin
                 Encoded = dproto_tcp:encode(Msg),
                 Decoded = dproto_tcp:decode(Encoded),

@@ -22,7 +22,13 @@ prop_encode_decode_metric() ->
 
 prop_encode_decode_metrics() ->
     ?FORALL(Metrics, non_empty_binary_list(),
-            Metrics == dproto:decode_metrics(dproto:encode_metrics(Metrics))).
+            Metrics == dproto_tcp:decode_metrics(
+                         dproto_tcp:encode_metrics(Metrics))).
+
+prop_encode_decode_buckets() ->
+    ?FORALL(Buckets, non_empty_binary_list(),
+            Buckets == dproto_tcp:decode_buckets(
+                         dproto_tcp:encode_buckets(Buckets))).
 
 
 -endif.

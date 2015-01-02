@@ -6,16 +6,19 @@
 
 -define(SENTRY, 5).
 -define(SWRITE, 6).
+-define(BUCKET_INFO, 7).
+-define(BUCKET_ADD, 8).
 
 %% number of bits used to encode the bucket size.
-%% => buckets can be 256 byte at most!
+%% => buckets can be 255 byte at most!
 -define(BUCKET_SS, 8).
 
+%% number of bits used to encode the entire buckets list.
+-define(BUCKETS_SS, 32).
 
 %% The number of bits used to encode the size of the a single metric part.
-%% => each part can be 256 byte at max!
+%% => each part can be 255 byte at max!
 -define(METRIC_ELEMENT_SS, 8).
-
 
 %% The number of bits used to encode the size of a whole metric (All of it's
 %% parts)
@@ -45,6 +48,7 @@
 %% Number of bits used to encode the delay as part of the streaming protocol.
 -define(DELAY_SIZE, 8).
 
-
 %% The type used to encode sizes.
 -define(SIZE_TYPE, unsigned-integer).
+%% The type used to encode sizes.
+-define(TIME_TYPE, unsigned-integer).
