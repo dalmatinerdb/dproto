@@ -69,15 +69,19 @@ bad_points() ->
 points() ->
     fault(bad_points(), good_points()).
 
+non_neg_int() ->
+    ?SUCHTHAT(I, int(), I >= 0).
+
 pos_int() ->
-    ?SUCHTHAT(I, int(), I > 0).
+    ?SUCHTHAT(I, non_neg_int(), I > 0).
 
 tcp_msg() ->
     oneof([
            buckets,
            {list, bucket()},
            {info, bucket()},
-           {add, bucket(), pos_int(), pos_int()}
+           {add, bucket(), pos_int(), pos_int(), non_neg_int()},
+           {delete, bucket()}
           ]).
 
 valid_delay(_Delay) when is_integer(_Delay), _Delay > 0, _Delay < 256 ->

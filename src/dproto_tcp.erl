@@ -6,6 +6,7 @@
 -export([
          encode_metrics/1, decode_metrics/1,
          encode_buckets/1, decode_buckets/1,
+         encode_bucket_info/3, decode_bucket_info/1,
          encode/1,
          decode/1,
          decode_stream/1
@@ -105,6 +106,18 @@ decode_buckets(<<_Size:?BUCKETS_SS/?SIZE_TYPE, Buckets:_Size/binary>>) ->
     [ Bucket || <<_S:?BUCKET_SS/?SIZE_TYPE, Bucket:_S/binary>> <= Buckets].
 
 
+encode_bucket_info(Resolution, PPF, TTL) when
+      is_integer(Resolution), Resolution > 0,
+      is_integer(PPF), PPF > 0,
+      is_integer(TTL), TTL >= 0 ->
+    <<Resolution:?TIME_SIZE/?TIME_TYPE,
+      PPF:?TIME_SIZE/?TIME_TYPE,
+      TTL:?TIME_SIZE/?TIME_TYPE>>.
+
+decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
+                     PPF:?TIME_SIZE/?TIME_TYPE,
+                     TTL:?TIME_SIZE/?TIME_TYPE>>) ->
+    {Resolution, PPF, TTL}.
 %%--------------------------------------------------------------------
 %% @doc
 %% Encodes a message for the binary protocol.
@@ -128,12 +141,19 @@ encode({info, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
     <<?BUCKET_INFO,
       (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
 
-encode({add, Bucket, Resolution, PPF}) when
+encode({add, Bucket, Resolution, PPF, TTL}) when
       is_binary(Bucket), byte_size(Bucket) > 0,
       is_integer(Resolution), Resolution > 0,
-      is_integer(PPF), PPF > 0 ->
+      is_integer(PPF), PPF > 0,
+      is_integer(TTL), TTL >= 0 ->
     <<?BUCKET_ADD, (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
-      Resolution:?TIME_SIZE/?TIME_TYPE, PPF:?TIME_SIZE/?TIME_TYPE>>;
+      Resolution:?TIME_SIZE/?TIME_TYPE,
+      PPF:?TIME_SIZE/?TIME_TYPE,
+      TTL:?TIME_SIZE/?TIME_TYPE>>;
+
+encode({delete, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
+    <<?BUCKET_DELETE,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
 
 encode({get, Bucket, Metric, Time, Count}) when
       is_binary(Bucket), byte_size(Bucket) > 0,
@@ -189,8 +209,13 @@ decode(<<?BUCKET_INFO, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
     {info, Bucket};
 
 decode(<<?BUCKET_ADD, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary,
-         Resolution:?TIME_SIZE/?TIME_TYPE, PPF:?TIME_SIZE/?TIME_TYPE>>) ->
-    {add, Bucket, Resolution, PPF};
+         Resolution:?TIME_SIZE/?TIME_TYPE,
+         PPF:?TIME_SIZE/?TIME_TYPE,
+         TTL:?TIME_SIZE/?TIME_TYPE>>) ->
+    {add, Bucket, Resolution, PPF, TTL};
+
+decode(<<?BUCKET_DELETE, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
+    {delete, Bucket};
 
 decode(<<?GET,
          _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,

@@ -8,6 +8,7 @@
 -define(SWRITE, 6).
 -define(BUCKET_INFO, 7).
 -define(BUCKET_ADD, 8).
+-define(BUCKET_DELETE, 9).
 
 %% number of bits used to encode the bucket size.
 %% => buckets can be 255 byte at most!
@@ -50,5 +51,6 @@
 
 %% The type used to encode sizes.
 -define(SIZE_TYPE, unsigned-integer).
-%% The type used to encode sizes.
+
+%% The type used to encode time.
 -define(TIME_TYPE, unsigned-integer).
