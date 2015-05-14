@@ -28,7 +28,7 @@
 -type batch_message() ::
         incomplete |
         batch_end |
-        {metric,
+        {batch,
          Metric :: binary(),
          Points :: binary()}.
 
