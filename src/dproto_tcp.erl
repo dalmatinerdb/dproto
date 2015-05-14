@@ -49,9 +49,6 @@
 %% Encode a list of metrics to it's binary form for sending it over
 %% the wire.
 %%
-%% @spec encode_metrics([dproto:metric()]) ->
-%%                             binary().
-%%
 %% @end
 %%--------------------------------------------------------------------
 
@@ -70,9 +67,6 @@ encode_metrics(Metrics) when is_list(Metrics) ->
 %%
 %% Node this does not recursively decode the metrics!
 %%
-%% @spec decode_metrics(binary()) ->
-%%                             [dproto:metric()].
-%%
 %% @end
 %%--------------------------------------------------------------------
 
@@ -86,9 +80,6 @@ decode_metrics(<<_Size:?METRICS_SS/?SIZE_TYPE, Metrics:_Size/binary>>) ->
 %% @doc
 %% Encode a list of buckets to it's binary form for sending it over
 %% the wire.
-%%
-%% @spec encode_buckets([dproto:bucket()]) ->
-%%                             binary().
 %%
 %% @end
 %%--------------------------------------------------------------------
@@ -105,9 +96,6 @@ encode_buckets(Buckets) when is_list(Buckets) ->
 %% @doc
 %% Decodes the binary representation of a bucket list to it's list
 %% representation.
-%%
-%% @spec decode_buckets(binary()) ->
-%%                             [dproto:bucket()].
 %%
 %% @end
 %%--------------------------------------------------------------------
@@ -134,9 +122,6 @@ decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
 %%--------------------------------------------------------------------
 %% @doc
 %% Encodes a message for the binary protocol.
-%%
-%% @spec encode(tcp_message() | stream_message()) ->
-%%                     binary()
 %%
 %% @end
 %%--------------------------------------------------------------------
@@ -223,9 +208,6 @@ encode(flush) ->
 %%--------------------------------------------------------------------
 %% @doc
 %% Decodes a normal TCP message from the wire protocol.
-%%
-%% @spec decode(binary()) ->
-%%                     tcp_message()
 %%
 %% @end
 %%--------------------------------------------------------------------
