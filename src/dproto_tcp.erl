@@ -9,15 +9,24 @@
          encode_bucket_info/3, decode_bucket_info/1,
          encode/1,
          decode/1,
-         decode_stream/1
+         decode_stream/1,
+         decode_batch/1
         ]).
 
 -type stream_message() ::
         {stream,
          Metric :: binary(),
-         Time :: pos_integer(),
+
          Points :: binary()} |
+        {batch,
+         Time :: pos_integer()} |
         flush.
+
+-type batch_message() ::
+        batch_end |
+        {metric,
+         Metric :: binary(),
+         Points :: binary()}.
 
 -type tcp_message() ::
         buckets |
@@ -128,7 +137,7 @@ decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
 %% @end
 %%--------------------------------------------------------------------
 
--spec encode(tcp_message() | stream_message()) ->
+-spec encode(tcp_message() | stream_message() | batch_message()) ->
                     binary().
 encode(buckets) ->
     <<?BUCKETS>>;
@@ -182,6 +191,27 @@ encode({stream, Metric, Time, Points}) when
       (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
       (byte_size(Points)):?DATA_SS/?SIZE_TYPE, Points/binary>>;
 
+
+encode({batch, Time}) when
+      is_integer(Time), Time >= 0 ->
+    <<?SBATCH,
+      Time:?TIME_SIZE/?SIZE_TYPE>>;
+
+encode({batch, Metric, Point}) when
+      is_binary(Metric), byte_size(Metric) > 0,
+      is_binary(Point), byte_size(Point) == ?DATA_SIZE  ->
+    <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary, Point:?DATA_SIZE/binary>>;
+
+
+encode({batch, Metric, Point}) when
+      is_binary(Metric), byte_size(Metric) > 0,
+      is_integer(Point) ->
+    PointB = mmath_bin:from_list([Point]),
+    <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary, PointB:?DATA_SIZE/binary>>;
+
+encode(batch_end) ->
+    <<0:?METRIC_SS/?SIZE_TYPE>>;
+
 encode(flush) ->
     <<?SWRITE>>.
 
@@ -233,9 +263,6 @@ decode(<<?STREAM,
 %% @doc
 %% Decodes a streaming TCP message from the wire protocol.
 %%
-%% @spec decode(binary()) ->
-%%                     tcp_message()
-%%
 %% @end
 %%--------------------------------------------------------------------
 
@@ -252,8 +279,29 @@ decode_stream(<<?SENTRY,
                 Rest/binary>>) ->
     {{stream, Metric, Time, Points}, Rest};
 
-decode_stream(<<>>) ->
-    {incomplete, <<>>};
+decode_stream(<<?SBATCH,
+                Time:?TIME_SIZE/?SIZE_TYPE, Rest/binary>>) ->
+    {{batch, Time}, Rest};
 
-decode_stream(<<?SENTRY, _/binary>> = Rest) ->
+decode_stream(Rest) ->
+    {incomplete, Rest}.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Decodes a batched TCP message from the wire protocol.
+%%
+%% @end
+%%--------------------------------------------------------------------
+
+-spec decode_batch(binary()) ->
+                           {batch_message() | incomplete, binary()}.
+
+decode_batch(<<0:?METRIC_SS/?SIZE_TYPE, Rest/binary>>) ->
+    {batch_end, Rest};
+
+decode_batch(<<_MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
+               Point:?DATA_SIZE/binary, Rest/binary>>) ->
+    {{batch, Metric, Point}, Rest};
+
+decode_batch(Rest) ->
     {incomplete, Rest}.

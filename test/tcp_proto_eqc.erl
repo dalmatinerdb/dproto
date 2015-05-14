@@ -60,6 +60,16 @@ good_time() ->
 mtime() ->
     fault(bad_time(), good_time()).
 
+
+point() ->
+    fault(bad_point(), good_point()).
+
+good_point() ->
+    ?LET(Point, int(), mmath_bin:from_list([Point])).
+
+bad_point() ->
+    ?SUCHTHAT(Points, non_empty_binary(), byte_size(Points) /= ?DATA_SIZE).
+
 good_points() ->
     ?LET(Points, list(int()), mmath_bin:from_list(Points)).
 
@@ -112,6 +122,14 @@ valid_points(_Points) when
 valid_points(_) ->
     false.
 
+
+valid_point(_Point) when
+      is_binary(_Point), byte_size(_Point) =:= ?DATA_SIZE ->
+    true;
+
+valid_point(_) ->
+    false.
+
 prop_encode_decode_general() ->
     ?FORALL(Msg, tcp_msg(),
             begin
@@ -146,6 +164,38 @@ prop_encode_decode_stream_entry() ->
                 true ->
                     Encoded = dproto_tcp:encode(Msg),
                     {Decoded, <<>>} = dproto_tcp:decode_stream(Encoded),
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       Msg =:= Decoded);
+                _ ->
+                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
+            end).
+
+prop_encode_decode_batch() ->
+    ?FORALL(Msg = {batch, Time},
+            {batch, mtime()},
+            case valid_time(Time) of
+                true ->
+                    Encoded = dproto_tcp:encode(Msg),
+                    {Decoded, <<>>} = dproto_tcp:decode_stream(Encoded),
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       Msg =:= Decoded);
+                _ ->
+                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
+            end).
+
+prop_encode_decode_batch_entry() ->
+    ?FORALL(Msg = {batch, _, Point},
+            {batch, metric(), point()},
+            case valid_point(Point) of
+                true ->
+                    Encoded = dproto_tcp:encode(Msg),
+                    {Decoded, <<>>} = dproto_tcp:decode_batch(Encoded),
                     ?WHENFAIL(
                        io:format(user,
                                  "~p -> ~p -> ~p~n",

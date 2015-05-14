@@ -9,6 +9,7 @@
 -define(BUCKET_INFO, 7).
 -define(BUCKET_ADD, 8).
 -define(BUCKET_DELETE, 9).
+-define(SBATCH, 10).
 
 %% number of bits used to encode the bucket size.
 %% => buckets can be 255 byte at most!
