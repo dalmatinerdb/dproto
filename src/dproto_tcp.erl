@@ -18,7 +18,7 @@
 -type stream_message() ::
         {stream,
          Metric :: binary(),
-
+         Time :: pos_integer(),
          Points :: binary()} |
         {batch,
          Time :: pos_integer()} |
@@ -296,7 +296,7 @@ decode_stream(Rest) ->
 %%--------------------------------------------------------------------
 
 -spec decode_batch(binary()) ->
-                           {batch_message() | incomplete, binary()}.
+                          {batch_message() | incomplete, binary()}.
 
 decode_batch(<<0:?METRIC_SS/?SIZE_TYPE, Rest/binary>>) ->
     {batch_end, Rest};
