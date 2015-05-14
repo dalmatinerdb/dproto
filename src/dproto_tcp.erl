@@ -13,6 +13,8 @@
          decode_batch/1
         ]).
 
+-export_type([tcp_message/0, batch_message/0, stream_message/0]).
+
 -type stream_message() ::
         {stream,
          Metric :: binary(),
