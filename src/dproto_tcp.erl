@@ -16,6 +16,7 @@
 -export_type([tcp_message/0, batch_message/0, stream_message/0]).
 
 -type stream_message() ::
+        incomplete |
         {stream,
          Metric :: binary(),
          Time :: pos_integer(),
@@ -25,6 +26,7 @@
         flush.
 
 -type batch_message() ::
+        incomplete |
         batch_end |
         {metric,
          Metric :: binary(),
@@ -269,7 +271,7 @@ decode(<<?STREAM,
 %%--------------------------------------------------------------------
 
 -spec decode_stream(binary()) ->
-                           {stream_message() | incomplete, binary()}.
+                           {stream_message(), binary()}.
 
 decode_stream(<<?SWRITE, Rest/binary>>) ->
     {flush, Rest};
@@ -296,7 +298,7 @@ decode_stream(Rest) ->
 %%--------------------------------------------------------------------
 
 -spec decode_batch(binary()) ->
-                          {batch_message() | incomplete, binary()}.
+                          {batch_message(), binary()}.
 
 decode_batch(<<0:?METRIC_SS/?SIZE_TYPE, Rest/binary>>) ->
     {batch_end, Rest};
