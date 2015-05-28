@@ -89,6 +89,7 @@ tcp_msg() ->
     oneof([
            buckets,
            {list, bucket()},
+           {list, bucket(), metric()},
            {info, bucket()},
            {add, bucket(), pos_int(), pos_int(), non_neg_int()},
            {delete, bucket()}

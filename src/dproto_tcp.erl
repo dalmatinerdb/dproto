@@ -135,6 +135,12 @@ encode({list, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
     <<?LIST,
       (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
 
+encode({list, Bucket, Prefix}) when is_binary(Bucket), byte_size(Bucket) > 0,
+                                    is_binary(Prefix), byte_size(Prefix) > 0 ->
+    <<?LIST_PREFIX,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      (byte_size(Prefix)):?METRIC_SS/?SIZE_TYPE, Prefix/binary>>;
+
 encode({info, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
     <<?BUCKET_INFO,
       (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
@@ -218,8 +224,13 @@ encode(flush) ->
 decode(<<?BUCKETS>>) ->
     buckets;
 
+
 decode(<<?LIST, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
     {list, Bucket};
+
+decode(<<?LIST_PREFIX, _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary,
+         _PSize:?METRIC_SS/?SIZE_TYPE, Prefix:_PSize/binary>>) ->
+    {list, Bucket, Prefix};
 
 decode(<<?BUCKET_INFO, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
     {info, Bucket};
