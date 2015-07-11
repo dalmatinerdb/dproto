@@ -7,3 +7,4 @@ deps
 *.beam
 *.eqc
 doc
+_build/

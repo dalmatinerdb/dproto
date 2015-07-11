@@ -1,0 +1,8 @@
+[{<<"fqc">>,
+  {git,"https://github.com/project-fifo/fqc.git",
+       {ref,"883013e96408f98b29d016fa094b8ac7410c364e"}},
+  1},
+ {<<"mmath">>,
+  {git,"https://github.com/DalmatinerDB/mmath.git",
+       {ref,"fe3f3d6c6f52c7760830fb2806484a1cad3b49f2"}},
+  0}].

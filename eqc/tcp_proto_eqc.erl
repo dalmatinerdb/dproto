@@ -1,15 +1,8 @@
 -module(tcp_proto_eqc).
 
--ifdef(TEST).
--ifdef(EQC).
-
--define(EQC_NUM_TESTS, 5000).
-
 -include_lib("mmath/include/mmath.hrl").
--include_lib("eqc/include/eqc_fsm.hrl").
--include_lib("fqc/include/fqc.hrl").
+-include_lib("eqc/include/eqc.hrl").
 -compile(export_all).
-
 
 non_empty_binary() ->
     ?SUCHTHAT(B, ?LET(L, list(choose($a, $z)), list_to_binary(L)), B =/= <<>>).
@@ -231,6 +224,3 @@ prop_encode_decode_metrics() ->
                 L2 = lists:sort(Rev),
                 L1 == L2
             end).
-
--endif.
--endif.

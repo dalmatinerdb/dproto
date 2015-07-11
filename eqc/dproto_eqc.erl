@@ -1,12 +1,6 @@
 -module(dproto_eqc).
 
--ifdef(TEST).
--ifdef(EQC).
-
--define(EQC_NUM_TESTS, 5000).
-
--include_lib("eqc/include/eqc_fsm.hrl").
--include_lib("fqc/include/fqc.hrl").
+-include_lib("eqc/include/eqc.hrl").
 -compile(export_all).
 
 
@@ -29,7 +23,3 @@ prop_encode_decode_buckets() ->
     ?FORALL(Buckets, non_empty_binary_list(),
             Buckets == dproto_tcp:decode_buckets(
                          dproto_tcp:encode_buckets(Buckets))).
-
-
--endif.
--endif.
