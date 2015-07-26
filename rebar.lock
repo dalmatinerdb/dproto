@@ -1,1 +1,4 @@
-[{<<"mmath">>,{pkg,<<"mmath">>,<<"0.1.6">>},0}].
+[{<<"mmath">>,
+  {git,"https://github.com/DalmatinerDB/mmath.git",
+       {ref,"c2cbc8464a6152e1d280a8a5fd6420dbe6620150"}},
+  0}].
