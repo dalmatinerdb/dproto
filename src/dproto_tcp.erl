@@ -35,6 +35,7 @@
 -type tcp_message() ::
         buckets |
         {list, Bucket :: binary()} |
+        {list, Bucket :: binary(), Prefix :: binary()} |
         {get,
          Bucket :: binary(),
          Metric :: binary(),
