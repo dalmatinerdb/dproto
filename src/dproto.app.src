@@ -1,9 +1,9 @@
 {application,dproto,
-             [{description,"Protocols for dalmatinadb"},
-              {vsn,"0.1.10"},
+             [{description,"Protocols for dalmatinerdb"},
+              {vsn,"0.1.11"},
               {registered,[]},
               {applications,[kernel,stdlib,mmath]},
               {env,[]},
               {contributors,["Heinz N. Gies"]},
               {licenses,["MIT"]},
-              {links,[{"Github","https://github.com/dalmatienrdb/dproto"}]}]}.
+              {links,[{"Github","https://github.com/dalmatinerdb/dproto"}]}]}.
