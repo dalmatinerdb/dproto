@@ -35,7 +35,7 @@ metric_from_list(Metric) when is_list(Metric) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Encodes the list representation of a metric to the binary
+%% Decodes the binary representation of a metric to the list
 %% representation.
 %%
 %% @spec metric_to_list(metric()) ->
@@ -54,8 +54,8 @@ metric_to_list(Metric) when is_binary(Metric) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Transforms a metric in a human readable string representation,
-%% joining the data with a seperator.
+%% Transforms a metric into a human readable string representation,
+%% joining the data with a separator.
 %%
 %% @spec metric_to_string(metric(), binary()) ->
 %%                              binary()
