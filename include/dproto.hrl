@@ -36,14 +36,14 @@
 %% That is a lot! Good problem to have if we ever face it!
 -define(METRICS_SS, 64).
 
-%% The number of bits used to encode the length of th payload data.
+%% The number of bits used to encode the length of the payload data.
 %% => this means we can encode 4,294,967,296 byte or 536,870,912 points
 %% at 8 byte / point in a single request.
 %%
 %% we should never do that!
 -define(DATA_SS, 32).
 
-%% Tye number of bits used for encoding the time.
+%% The number of bits used for encoding the time.
 -define(TIME_SIZE, 64).
 %% The number of bits used for encoding the count.
 -define(COUNT_SIZE, 32).
