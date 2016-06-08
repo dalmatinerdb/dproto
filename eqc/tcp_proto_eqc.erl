@@ -81,6 +81,7 @@ pos_int() ->
 tcp_msg() ->
     oneof([
            buckets,
+           {resolution, bucket()},
            {list, bucket()},
            {list, bucket(), metric()},
            {info, bucket()},

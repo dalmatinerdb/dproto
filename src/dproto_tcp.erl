@@ -34,6 +34,7 @@
 
 -type tcp_message() ::
         buckets |
+        {resolution, Bucket :: binary()} |
         {list, Bucket :: binary()} |
         {list, Bucket :: binary(), Prefix :: binary()} |
         {get,
@@ -132,6 +133,10 @@ decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
 encode(buckets) ->
     <<?BUCKETS>>;
 
+encode({resolution, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
+    <<?RESOLUTION,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
+
 encode({list, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
     <<?LIST,
       (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
@@ -225,6 +230,8 @@ encode(flush) ->
 decode(<<?BUCKETS>>) ->
     buckets;
 
+decode(<<?RESOLUTION, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
+    {resolution, Bucket};
 
 decode(<<?LIST, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
     {list, Bucket};

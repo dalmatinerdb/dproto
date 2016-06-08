@@ -1,6 +1,6 @@
 {application,dproto,
              [{description,"Protocols for dalmatinerdb"},
-              {vsn,"0.1.14"},
+              {vsn,"0.1.15"},
               {registered,[]},
               {applications,[kernel,stdlib,mmath]},
               {env,[]},
