@@ -15,7 +15,7 @@
 
 -export_type([tcp_message/0, batch_message/0, stream_message/0]).
 
--type ttl() :: infinity | non_neg_integer().
+-type ttl() :: non_neg_integer().
 
 -type stream_message() ::
         incomplete |
@@ -155,6 +155,11 @@ decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
 encode(buckets) ->
     <<?BUCKETS>>;
 
+%% @doc
+%% Encodes the TTL for a bucket.  Note that a zero value is intrepeted to mean
+%% `infinity'.
+%%
+%% @end
 encode({ttl, Bucket, TTL}) when is_binary(Bucket), byte_size(Bucket) > 0,
                                 is_integer(TTL), TTL >= 0 ->
     <<?TTL,

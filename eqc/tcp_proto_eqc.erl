@@ -81,7 +81,7 @@ resolution() ->
     mtime().
 
 ttl() ->
-    oneof([mtime(), infinity]).
+    mtime().
 
 tcp_msg() ->
     oneof([
@@ -265,7 +265,7 @@ prop_encode_decode_bucket_info() ->
 
 prop_encode_decode_ttl() ->
     ?FORALL(Msg = {ttl, _, TTL}, {ttl, bucket(), ttl()},
-            case TTL =:= infinity orelse valid_time(TTL) of
+            case valid_time(TTL) of
                 true ->
                     Encoded = dproto_tcp:encode(Msg),
                     Decoded = dproto_tcp:decode(Encoded),
