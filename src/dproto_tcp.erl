@@ -18,14 +18,14 @@
 -type ttl() :: pos_integer() | infinity.
 
 -type stream_message() ::
+        flush |
         incomplete |
+        {batch,
+         Time :: non_neg_integer()} |
         {stream,
          Metric :: binary(),
-         Time :: pos_integer(),
-         Points :: binary()} |
-        {batch,
-         Time :: pos_integer()} |
-        flush.
+         Time :: non_neg_integer(),
+         Points :: binary()}.
 
 -type batch_message() ::
         incomplete |
@@ -48,6 +48,8 @@
          Bucket :: binary(),
          Delay :: pos_integer()}.
 
+-type encoded_metric() :: <<_:?METRICS_SS,_:_*8>>.
+-type encoded_bucket() :: <<_:?BUCKETS_SS,_:_*8>>.
 %%--------------------------------------------------------------------
 %% @doc
 %% Encode a list of metrics to its binary form for sending it over
@@ -57,7 +59,7 @@
 %%--------------------------------------------------------------------
 
 -spec encode_metrics([dproto:metric()]) ->
-                            binary().
+                            encoded_metric().
 
 encode_metrics(Metrics) when is_list(Metrics) ->
     Data = << <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary>>
@@ -74,7 +76,7 @@ encode_metrics(Metrics) when is_list(Metrics) ->
 %% @end
 %%--------------------------------------------------------------------
 
--spec decode_metrics(binary()) ->
+-spec decode_metrics(encoded_metric()) ->
                             [dproto:metric()].
 
 decode_metrics(<<_Size:?METRICS_SS/?SIZE_TYPE, Metrics:_Size/binary>>) ->
@@ -89,7 +91,7 @@ decode_metrics(<<_Size:?METRICS_SS/?SIZE_TYPE, Metrics:_Size/binary>>) ->
 %%--------------------------------------------------------------------
 
 -spec encode_buckets([dproto:metric()]) ->
-                            binary().
+                            encoded_bucket().
 
 encode_buckets(Buckets) when is_list(Buckets) ->
     Data = << <<(byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>
@@ -104,7 +106,7 @@ encode_buckets(Buckets) when is_list(Buckets) ->
 %% @end
 %%--------------------------------------------------------------------
 
--spec decode_buckets(binary()) ->
+-spec decode_buckets(encoded_bucket()) ->
                             [dproto:bucket()].
 
 decode_buckets(<<_Size:?BUCKETS_SS/?SIZE_TYPE, Buckets:_Size/binary>>) ->
@@ -119,7 +121,7 @@ decode_buckets(<<_Size:?BUCKETS_SS/?SIZE_TYPE, Buckets:_Size/binary>>) ->
 %%--------------------------------------------------------------------
 
 -spec encode_bucket_info(pos_integer(), pos_integer(), ttl()) ->
-                            binary().
+                            <<_:192>>.
 
 encode_bucket_info(Resolution, PPF, _TTL) when
       is_integer(Resolution), Resolution > 0,
@@ -358,7 +360,7 @@ decode_stream(<<?SBATCH,
                 Time:?TIME_SIZE/?SIZE_TYPE, Rest/binary>>) ->
     {{batch, Time}, Rest};
 
-decode_stream(Rest) ->
+decode_stream(Rest) when is_binary(Rest) ->
     {incomplete, Rest}.
 
 %%--------------------------------------------------------------------

@@ -12,7 +12,7 @@
 -export_type([metric_list/0, metric/0, bucket/0]).
 
 -type metric_list() :: [binary()].
--type metric() :: binary().
+-type metric() :: bitstring().
 -type bucket() :: binary().
 
 %%--------------------------------------------------------------------
@@ -44,7 +44,7 @@ metric_from_list(Metric) when is_list(Metric) ->
 %% @end
 %%--------------------------------------------------------------------
 
--spec metric_to_list(metric()) ->
+-spec metric_to_list(binary()) ->
                             metric_list().
 
 metric_to_list(Metric) when is_binary(Metric) ->
