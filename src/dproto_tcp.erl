@@ -15,6 +15,8 @@
 
 -export_type([tcp_message/0, batch_message/0, stream_message/0]).
 
+-type ttl() :: pos_integer() | infinity.
+
 -type stream_message() ::
         incomplete |
         {stream,
@@ -34,7 +36,7 @@
 
 -type tcp_message() ::
         buckets |
-        {resolution, Bucket :: binary()} |
+        {ttl, Bucket :: binary(), TTL :: ttl()} |
         {list, Bucket :: binary()} |
         {list, Bucket :: binary(), Prefix :: binary()} |
         {get,
@@ -48,7 +50,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Encode a list of metrics to it's binary form for sending it over
+%% Encode a list of metrics to its binary form for sending it over
 %% the wire.
 %%
 %% @end
@@ -64,7 +66,7 @@ encode_metrics(Metrics) when is_list(Metrics) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Decodes the binary representation of a metric list to it's list
+%% Decodes the binary representation of a metric list to its list
 %% representation.
 %%
 %% Node this does not recursively decode the metrics!
@@ -80,7 +82,7 @@ decode_metrics(<<_Size:?METRICS_SS/?SIZE_TYPE, Metrics:_Size/binary>>) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Encode a list of buckets to it's binary form for sending it over
+%% Encode a list of buckets to its binary form for sending it over
 %% the wire.
 %%
 %% @end
@@ -96,7 +98,7 @@ encode_buckets(Buckets) when is_list(Buckets) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Decodes the binary representation of a bucket list to it's list
+%% Decodes the binary representation of a bucket list to its list
 %% representation.
 %%
 %% @end
@@ -108,19 +110,51 @@ encode_buckets(Buckets) when is_list(Buckets) ->
 decode_buckets(<<_Size:?BUCKETS_SS/?SIZE_TYPE, Buckets:_Size/binary>>) ->
     [ Bucket || <<_S:?BUCKET_SS/?SIZE_TYPE, Bucket:_S/binary>> <= Buckets].
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Encodes bucket properties such as PPF, Resolution and TTL into a binary
+%% form for transmission over the wire.
+%%
+%% @end
+%%--------------------------------------------------------------------
 
+-spec encode_bucket_info(pos_integer(), pos_integer(), ttl()) ->
+                            binary().
+
+encode_bucket_info(Resolution, PPF, _TTL) when
+      is_integer(Resolution), Resolution > 0,
+      is_integer(PPF), PPF > 0,
+      _TTL =:= infinity ->
+    <<Resolution:?TIME_SIZE/?TIME_TYPE,
+      PPF:?TIME_SIZE/?TIME_TYPE,
+      0:?TIME_SIZE/?TIME_TYPE>>;
 encode_bucket_info(Resolution, PPF, TTL) when
       is_integer(Resolution), Resolution > 0,
       is_integer(PPF), PPF > 0,
-      is_integer(TTL), TTL >= 0 ->
+      is_integer(TTL), TTL > 0 ->
     <<Resolution:?TIME_SIZE/?TIME_TYPE,
       PPF:?TIME_SIZE/?TIME_TYPE,
       TTL:?TIME_SIZE/?TIME_TYPE>>.
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Decodes bucket properties from the wire protocol.
+%%
+%% @end
+%%--------------------------------------------------------------------
+
+-spec decode_bucket_info(binary()) ->
+                            {pos_integer(), pos_integer(), ttl()}.
+
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
                      PPF:?TIME_SIZE/?TIME_TYPE,
                      TTL:?TIME_SIZE/?TIME_TYPE>>) ->
-    {Resolution, PPF, TTL}.
+    case TTL of
+        0 ->
+            {Resolution, PPF, infinity};
+        _ ->
+            {Resolution, PPF, TTL}
+    end.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -134,9 +168,20 @@ decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
 encode(buckets) ->
     <<?BUCKETS>>;
 
-encode({resolution, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
-    <<?RESOLUTION,
-      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
+%% @doc
+%% Encodes the TTL for a bucket.
+%% Note that a zero value is substituted in place of `infinity'.
+%%
+%% @end
+encode({ttl, Bucket, infinity}) ->
+    <<?TTL,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      0:?TIME_SIZE/?TIME_TYPE>>;
+encode({ttl, Bucket, TTL}) when is_binary(Bucket), byte_size(Bucket) > 0,
+                                is_integer(TTL), TTL > 0 ->
+    <<?TTL,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      TTL:?TIME_SIZE/?TIME_TYPE>>;
 
 encode({list, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
     <<?LIST,
@@ -190,9 +235,8 @@ encode({stream, Bucket, Delay, Resolution}) when
       Resolution > 0 ->
     <<?STREAM,
       Delay:?DELAY_SIZE/?SIZE_TYPE,
-      Resolution:?TIME_SIZE/?TIME_TYPE,
-      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
-
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      Resolution:?TIME_SIZE/?TIME_TYPE>>;
 
 encode({stream, Metric, Time, Points}) when
       is_binary(Metric), byte_size(Metric) > 0,
@@ -240,8 +284,19 @@ encode(flush) ->
 decode(<<?BUCKETS>>) ->
     buckets;
 
-decode(<<?RESOLUTION, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
-    {resolution, Bucket};
+%% @doc
+%% Decodes the TTL for a bucket.
+%% Note that a zero value is interpreted to mean `infinity'.
+%%
+%% @end
+decode(<<?TTL, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary,
+         TTL:?TIME_SIZE/?TIME_TYPE>>) ->
+    case TTL of
+        0 ->
+            {ttl, Bucket, infinity};
+        _ when TTL > 0 ->
+            {ttl, Bucket, TTL}
+    end;
 
 decode(<<?LIST, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
     {list, Bucket};
@@ -275,8 +330,8 @@ decode(<<?STREAM,
 
 decode(<<?STREAM,
          Delay:?DELAY_SIZE/?SIZE_TYPE,
-         Resolution:?TIME_SIZE/?TIME_TYPE,
-         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary>>) ->
+         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
+         Resolution:?TIME_SIZE/?TIME_TYPE>>) ->
     {stream, Bucket, Delay, Resolution}.
 
 %%--------------------------------------------------------------------
