@@ -53,7 +53,6 @@ good_time() ->
 mtime() ->
     fault(bad_time(), good_time()).
 
-
 point() ->
     fault(bad_point(), good_point()).
 
@@ -77,6 +76,9 @@ non_neg_int() ->
 
 pos_int() ->
     ?SUCHTHAT(I, non_neg_int(), I > 0).
+
+resolution() ->
+    mtime().
 
 tcp_msg() ->
     oneof([
@@ -140,6 +142,23 @@ prop_encode_decode_general() ->
 prop_encode_decode_stream() ->
     ?FORALL(Msg = {stream, _, Delay}, {stream, bucket(), delay()},
             case valid_delay(Delay) of
+                true ->
+                    Encoded = dproto_tcp:encode(Msg),
+                    Decoded = dproto_tcp:decode(Encoded),
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       Msg =:= Decoded);
+                _ ->
+                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
+            end).
+
+prop_encode_decode_stream_resolution() ->
+    ?FORALL(Msg = {stream, _, Delay, Res},
+            {stream, bucket(), delay(), resolution()},
+
+            case valid_delay(Delay) andalso valid_time(Res) of
                 true ->
                     Encoded = dproto_tcp:encode(Msg),
                     Decoded = dproto_tcp:decode(Encoded),
