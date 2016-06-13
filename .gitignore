@@ -8,3 +8,4 @@ deps
 *.eqc
 doc
 _build/
+.rebar3

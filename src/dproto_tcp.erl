@@ -121,6 +121,7 @@ decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
                      PPF:?TIME_SIZE/?TIME_TYPE,
                      TTL:?TIME_SIZE/?TIME_TYPE>>) ->
     {Resolution, PPF, TTL}.
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Encodes a message for the binary protocol.
@@ -183,6 +184,16 @@ encode({stream, Bucket, Delay}) when
       Delay:?DELAY_SIZE/?SIZE_TYPE,
       (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
 
+encode({stream, Bucket, Delay, Resolution}) when
+      is_binary(Bucket), byte_size(Bucket) > 0,
+      is_integer(Delay), Delay > 0, Delay < 256,
+      Resolution > 0 ->
+    <<?STREAM,
+      Delay:?DELAY_SIZE/?SIZE_TYPE,
+      Resolution:?TIME_SIZE/?TIME_TYPE,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
+
+
 encode({stream, Metric, Time, Points}) when
       is_binary(Metric), byte_size(Metric) > 0,
       is_binary(Points), byte_size(Points) rem ?DATA_SIZE == 0,
@@ -191,7 +202,6 @@ encode({stream, Metric, Time, Points}) when
       Time:?TIME_SIZE/?SIZE_TYPE,
       (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
       (byte_size(Points)):?DATA_SS/?SIZE_TYPE, Points/binary>>;
-
 
 encode({batch, Time}) when
       is_integer(Time), Time >= 0 ->
@@ -261,8 +271,13 @@ decode(<<?GET,
 decode(<<?STREAM,
          Delay:?DELAY_SIZE/?SIZE_TYPE,
          _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary>>) ->
-    {stream, Bucket, Delay}.
+    {stream, Bucket, Delay};
 
+decode(<<?STREAM,
+         Delay:?DELAY_SIZE/?SIZE_TYPE,
+         Resolution:?TIME_SIZE/?TIME_TYPE,
+         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary>>) ->
+    {stream, Bucket, Delay, Resolution}.
 
 %%--------------------------------------------------------------------
 %% @doc
