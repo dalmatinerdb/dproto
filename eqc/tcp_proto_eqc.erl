@@ -28,6 +28,9 @@ bad_delay() ->
 delay() ->
     fault(bad_delay(), good_delay()).
 
+pos_int() ->
+    ?SUCHTHAT(N, int(), N > 0).
+
 bad_count() ->
     oneof([
            neg_or_zero(),
@@ -74,19 +77,19 @@ points() ->
 non_neg_int() ->
     ?SUCHTHAT(I, int(), I >= 0).
 
-pos_int() ->
-    ?SUCHTHAT(I, non_neg_int(), I > 0).
-
 resolution() ->
     mtime().
+
+ttl() ->
+    oneof([mtime(), infinity]).
 
 tcp_msg() ->
     oneof([
            buckets,
-           {resolution, bucket()},
            {list, bucket()},
            {list, bucket(), metric()},
            {info, bucket()},
+           {ttl, bucket(), ttl()},
            {add, bucket(), pos_int(), pos_int(), non_neg_int()},
            {delete, bucket()}
           ]).
@@ -243,4 +246,34 @@ prop_encode_decode_metrics() ->
                 Rev = dproto_tcp:decode_metrics(B),
                 L2 = lists:sort(Rev),
                 L1 == L2
+            end).
+
+prop_encode_decode_bucket_info() ->
+    ?FORALL(Msg = {Resolution, _, _}, {resolution(), pos_int(), ttl()},
+            case valid_time(Resolution) of
+                true ->
+                    Encoded = dproto_tcp:encode_bucket_info(Msg),
+                    Decoded = dproto_tcp:decode_bucket_info(Encoded),
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       Msg =:= Decoded);
+                _ ->
+                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
+            end).
+
+prop_encode_decode_ttl() ->
+    ?FORALL(Msg = {ttl, _, TTL}, {ttl, bucket(), ttl()},
+            case TTL =:= infinity orelse valid_time(TTL) of
+                true ->
+                    Encoded = dproto_tcp:encode(Msg),
+                    Decoded = dproto_tcp:decode(Encoded),
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       Msg =:= Decoded);
+                _ ->
+                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).

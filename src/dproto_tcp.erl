@@ -15,6 +15,8 @@
 
 -export_type([tcp_message/0, batch_message/0, stream_message/0]).
 
+-type ttl() :: infinity | non_neg_integer().
+
 -type stream_message() ::
         incomplete |
         {stream,
@@ -34,7 +36,7 @@
 
 -type tcp_message() ::
         buckets |
-        {resolution, Bucket :: binary()} |
+        {ttl, Bucket :: binary(), TTL :: ttl()} |
         {list, Bucket :: binary()} |
         {list, Bucket :: binary(), Prefix :: binary()} |
         {get,
@@ -48,7 +50,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Encode a list of metrics to it's binary form for sending it over
+%% Encode a list of metrics to its binary form for sending it over
 %% the wire.
 %%
 %% @end
@@ -64,7 +66,7 @@ encode_metrics(Metrics) when is_list(Metrics) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Decodes the binary representation of a metric list to it's list
+%% Decodes the binary representation of a metric list to its list
 %% representation.
 %%
 %% Node this does not recursively decode the metrics!
@@ -80,7 +82,7 @@ decode_metrics(<<_Size:?METRICS_SS/?SIZE_TYPE, Metrics:_Size/binary>>) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Encode a list of buckets to it's binary form for sending it over
+%% Encode a list of buckets to its binary form for sending it over
 %% the wire.
 %%
 %% @end
@@ -96,7 +98,7 @@ encode_buckets(Buckets) when is_list(Buckets) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Decodes the binary representation of a bucket list to it's list
+%% Decodes the binary representation of a bucket list to its list
 %% representation.
 %%
 %% @end
@@ -108,7 +110,16 @@ encode_buckets(Buckets) when is_list(Buckets) ->
 decode_buckets(<<_Size:?BUCKETS_SS/?SIZE_TYPE, Buckets:_Size/binary>>) ->
     [ Bucket || <<_S:?BUCKET_SS/?SIZE_TYPE, Bucket:_S/binary>> <= Buckets].
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Encodes bucket properties such as PPF, Resolution and TTL into a binary
+%% form for transmission over the wire.
+%%
+%% @end
+%%--------------------------------------------------------------------
 
+-spec encode_bucket_info(pos_integer(), pos_integer(), ttl()) ->
+                            binary().
 encode_bucket_info(Resolution, PPF, TTL) when
       is_integer(Resolution), Resolution > 0,
       is_integer(PPF), PPF > 0,
@@ -116,6 +127,16 @@ encode_bucket_info(Resolution, PPF, TTL) when
     <<Resolution:?TIME_SIZE/?TIME_TYPE,
       PPF:?TIME_SIZE/?TIME_TYPE,
       TTL:?TIME_SIZE/?TIME_TYPE>>.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Decodes bucket properties from the wire protocol.
+%%
+%% @end
+%%--------------------------------------------------------------------
+
+-spec decode_bucket_info(binary()) ->
+                            {pos_integer(), pos_integer(), ttl()}.
 
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
                      PPF:?TIME_SIZE/?TIME_TYPE,
@@ -134,9 +155,11 @@ decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
 encode(buckets) ->
     <<?BUCKETS>>;
 
-encode({resolution, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
-    <<?RESOLUTION,
-      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
+encode({ttl, Bucket, TTL}) when is_binary(Bucket), byte_size(Bucket) > 0,
+                                is_integer(TTL), TTL >= 0 ->
+    <<?TTL,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      TTL:?TIME_SIZE/?TIME_TYPE>>;
 
 encode({list, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
     <<?LIST,
@@ -240,8 +263,9 @@ encode(flush) ->
 decode(<<?BUCKETS>>) ->
     buckets;
 
-decode(<<?RESOLUTION, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
-    {resolution, Bucket};
+decode(<<?TTL, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary,
+         TTL:?TIME_SIZE/?TIME_TYPE>>) ->
+    {ttl, Bucket, TTL};
 
 decode(<<?LIST, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
     {list, Bucket};

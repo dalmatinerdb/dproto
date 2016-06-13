@@ -11,7 +11,7 @@
 -define(BUCKET_DELETE, 9).
 -define(SBATCH, 10).
 -define(LIST_PREFIX, 11).
--define(RESOLUTION, 12).
+-define(TTL, 12).
 
 %% number of bits used to encode the bucket size.
 %% => buckets can be 255 byte at most!
