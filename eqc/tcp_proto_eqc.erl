@@ -81,7 +81,7 @@ resolution() ->
     mtime().
 
 ttl() ->
-    mtime().
+    oneof([infinity, mtime()]).
 
 tcp_msg() ->
     oneof([
@@ -264,9 +264,18 @@ prop_encode_decode_bucket_info() ->
             end).
 
 prop_encode_decode_ttl() ->
-    ?FORALL(Msg = {ttl, _, TTL}, {ttl, bucket(), ttl()},
-            case valid_time(TTL) of
-                true ->
+    ?FORALL(Msg = {ttl, Bucket, TTL}, {ttl, bucket(), ttl()},
+            case TTL of
+                infinity ->
+                    Encoded = dproto_tcp:encode(Msg),
+                    Decoded = dproto_tcp:decode(Encoded),
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       {ttl, Bucket, 0} =:= Decoded);
+                _ when is_integer(TTL), TTL >= 0,
+                       (TTL band 16#FFFFFFFFFFFFFFFF) =:= TTL ->
                     Encoded = dproto_tcp:encode(Msg),
                     Decoded = dproto_tcp:decode(Encoded),
                     ?WHENFAIL(

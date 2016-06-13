@@ -15,7 +15,7 @@
 
 -export_type([tcp_message/0, batch_message/0, stream_message/0]).
 
--type ttl() :: non_neg_integer().
+-type ttl() :: non_neg_integer() | infinity.
 
 -type stream_message() ::
         incomplete |
@@ -160,6 +160,8 @@ encode(buckets) ->
 %% `infinity'.
 %%
 %% @end
+encode({ttl, Bucket, infinity}) ->
+    encode({ttl, Bucket, 0});
 encode({ttl, Bucket, TTL}) when is_binary(Bucket), byte_size(Bucket) > 0,
                                 is_integer(TTL), TTL >= 0 ->
     <<?TTL,
@@ -270,7 +272,12 @@ decode(<<?BUCKETS>>) ->
 
 decode(<<?TTL, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary,
          TTL:?TIME_SIZE/?TIME_TYPE>>) ->
-    {ttl, Bucket, TTL};
+    case TTL of
+        0 ->
+            {ttl, Bucket, infinity};
+        _ when TTL > 0 ->
+            {ttl, Bucket, TTL}
+    end;
 
 decode(<<?LIST, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary>>) ->
     {list, Bucket};
