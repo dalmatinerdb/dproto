@@ -15,7 +15,7 @@
 
 -export_type([tcp_message/0, batch_message/0, stream_message/0]).
 
--type ttl() :: non_neg_integer() | infinity.
+-type ttl() :: pos_integer() | infinity.
 
 -type stream_message() ::
         incomplete |
@@ -120,10 +120,18 @@ decode_buckets(<<_Size:?BUCKETS_SS/?SIZE_TYPE, Buckets:_Size/binary>>) ->
 
 -spec encode_bucket_info(pos_integer(), pos_integer(), ttl()) ->
                             binary().
+
+encode_bucket_info(Resolution, PPF, _TTL) when
+      is_integer(Resolution), Resolution > 0,
+      is_integer(PPF), PPF > 0,
+      _TTL =:= infinity ->
+    <<Resolution:?TIME_SIZE/?TIME_TYPE,
+      PPF:?TIME_SIZE/?TIME_TYPE,
+      0:?TIME_SIZE/?TIME_TYPE>>;
 encode_bucket_info(Resolution, PPF, TTL) when
       is_integer(Resolution), Resolution > 0,
       is_integer(PPF), PPF > 0,
-      is_integer(TTL), TTL >= 0 ->
+      is_integer(TTL), TTL > 0 ->
     <<Resolution:?TIME_SIZE/?TIME_TYPE,
       PPF:?TIME_SIZE/?TIME_TYPE,
       TTL:?TIME_SIZE/?TIME_TYPE>>.
@@ -141,7 +149,12 @@ encode_bucket_info(Resolution, PPF, TTL) when
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
                      PPF:?TIME_SIZE/?TIME_TYPE,
                      TTL:?TIME_SIZE/?TIME_TYPE>>) ->
-    {Resolution, PPF, TTL}.
+    case TTL of
+        0 ->
+            {Resolution, PPF, infinity};
+        _ ->
+            {Resolution, PPF, TTL}
+    end.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -156,14 +169,16 @@ encode(buckets) ->
     <<?BUCKETS>>;
 
 %% @doc
-%% Encodes the TTL for a bucket.  Note that a zero value is intrepeted to mean
-%% `infinity'.
+%% Encodes the TTL for a bucket.
+%% Note that a zero value is substituted in place of `infinity'.
 %%
 %% @end
 encode({ttl, Bucket, infinity}) ->
-    encode({ttl, Bucket, 0});
+    <<?TTL,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      0:?TIME_SIZE/?TIME_TYPE>>;
 encode({ttl, Bucket, TTL}) when is_binary(Bucket), byte_size(Bucket) > 0,
-                                is_integer(TTL), TTL >= 0 ->
+                                is_integer(TTL), TTL > 0 ->
     <<?TTL,
       (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
       TTL:?TIME_SIZE/?TIME_TYPE>>;
@@ -270,6 +285,11 @@ encode(flush) ->
 decode(<<?BUCKETS>>) ->
     buckets;
 
+%% @doc
+%% Decodes the TTL for a bucket.
+%% Note that a zero value is interpreted to mean `infinity'.
+%%
+%% @end
 decode(<<?TTL, _Size:?BUCKET_SS/?SIZE_TYPE, Bucket:_Size/binary,
          TTL:?TIME_SIZE/?TIME_TYPE>>) ->
     case TTL of
