@@ -235,9 +235,8 @@ encode({stream, Bucket, Delay, Resolution}) when
       Resolution > 0 ->
     <<?STREAM,
       Delay:?DELAY_SIZE/?SIZE_TYPE,
-      Resolution:?TIME_SIZE/?TIME_TYPE,
-      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
-
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      Resolution:?TIME_SIZE/?TIME_TYPE>>;
 
 encode({stream, Metric, Time, Points}) when
       is_binary(Metric), byte_size(Metric) > 0,
@@ -331,8 +330,8 @@ decode(<<?STREAM,
 
 decode(<<?STREAM,
          Delay:?DELAY_SIZE/?SIZE_TYPE,
-         Resolution:?TIME_SIZE/?TIME_TYPE,
-         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary>>) ->
+         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
+         Resolution:?TIME_SIZE/?TIME_TYPE>>) ->
     {stream, Bucket, Delay, Resolution}.
 
 %%--------------------------------------------------------------------
