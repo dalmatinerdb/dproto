@@ -51,7 +51,6 @@ metric_to_list(Metric) when is_binary(Metric) ->
     [M || <<_Size:?METRIC_ELEMENT_SS/?SIZE_TYPE, M:_Size/binary>>
               <= Metric].
 
-
 %%--------------------------------------------------------------------
 %% @doc
 %% Transforms a metric into a human readable string representation,
