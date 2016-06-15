@@ -39,6 +39,7 @@
         {ttl, Bucket :: binary(), TTL :: ttl()} |
         {list, Bucket :: binary()} |
         {list, Bucket :: binary(), Prefix :: binary()} |
+        {info, Bucket :: binary()} |
         {delete, Bucket :: binary()} |
         {get,
          Bucket :: binary(),
