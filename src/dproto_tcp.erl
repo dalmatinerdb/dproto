@@ -13,6 +13,15 @@
          decode_batch/1
         ]).
 
+-ignore_xref([
+         encode_metrics/1, decode_metrics/1,
+         encode_buckets/1, decode_buckets/1,
+         encode_bucket_info/3, decode_bucket_info/1,
+         encode/1, decode/1,
+         decode_stream/1,
+         decode_batch/1
+        ]).
+
 -export_type([tcp_message/0, batch_message/0, stream_message/0]).
 
 -type ttl() :: pos_integer() | infinity.
@@ -48,7 +57,11 @@
          Count :: pos_integer()} |
         {stream,
          Bucket :: binary(),
-         Delay :: pos_integer()}.
+         Delay :: pos_integer()} |
+        {stream,
+         Bucket :: binary(),
+         Delay :: pos_integer(),
+         Resolution :: pos_integer()}.
 
 -type encoded_metric() :: <<_:?METRICS_SS,_:_*8>>.
 -type encoded_bucket() :: <<_:?BUCKETS_SS,_:_*8>>.
