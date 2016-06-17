@@ -63,8 +63,8 @@
          Delay :: pos_integer(),
          Resolution :: pos_integer()}.
 
--type encoded_metric() :: <<_:?METRICS_SS,_:_*8>>.
--type encoded_bucket() :: <<_:?BUCKETS_SS,_:_*8>>.
+-type encoded_metric() :: <<_:?METRICS_SS, _:_*8>>.
+-type encoded_bucket() :: <<_:?BUCKETS_SS, _:_*8>>.
 %%--------------------------------------------------------------------
 %% @doc
 %% Encode a list of metrics to its binary form for sending it over
@@ -272,14 +272,16 @@ encode({batch, Time}) when
 encode({batch, Metric, Point}) when
       is_binary(Metric), byte_size(Metric) > 0,
       is_binary(Point), byte_size(Point) == ?DATA_SIZE  ->
-    <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary, Point:?DATA_SIZE/binary>>;
+    <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
+      Point:?DATA_SIZE/binary>>;
 
 
 encode({batch, Metric, Point}) when
       is_binary(Metric), byte_size(Metric) > 0,
       is_integer(Point) ->
     PointB = mmath_bin:from_list([Point]),
-    <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary, PointB:?DATA_SIZE/binary>>;
+    <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
+      PointB:?DATA_SIZE/binary>>;
 
 encode(batch_end) ->
     <<0:?METRIC_SS/?SIZE_TYPE>>;
