@@ -4,6 +4,8 @@
 
 -export([encode_header/1, encode_points/3]).
 
+-ignore_xref([encode_header/1, encode_points/3]).
+
 encode_header(Bucket) ->
     <<?PUT, (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE,
       Bucket/binary>>.

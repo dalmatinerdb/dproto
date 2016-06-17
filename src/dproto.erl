@@ -9,6 +9,12 @@
          metric_to_string/2
         ]).
 
+-ignore_xref([
+         metric_from_list/1,
+         metric_to_list/1,
+         metric_to_string/2
+        ]).
+
 -export_type([metric_list/0, metric/0, bucket/0]).
 
 -type metric_list() :: [binary()].
