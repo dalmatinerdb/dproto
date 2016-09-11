@@ -50,6 +50,11 @@
         {list, Bucket :: binary(), Prefix :: binary()} |
         {info, Bucket :: binary()} |
         {delete, Bucket :: binary()} |
+        {events, Bucket :: binary(), [{pos_integer(), term()}]} |
+        {get_events,
+         Bucket :: binary(),
+         Start  :: pos_integer(),
+         End    :: pos_integer()} |
         {get,
          Bucket :: binary(),
          Metric :: binary(),
@@ -287,8 +292,24 @@ encode(batch_end) ->
     <<0:?METRIC_SS/?SIZE_TYPE>>;
 
 encode(flush) ->
-    <<?SWRITE>>.
+    <<?SWRITE>>;
 
+encode({events, Bucket, Events}) ->
+    EventsB = encode_events(Events),
+    <<?EVENTS,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      EventsB/binary>>;
+
+encode({get_events, Bucket, Start, End}) ->
+    <<?GET_EVENTS, (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary, Start:?ETIME_SIZE/?SIZE_TYPE, End:?ETIME_SIZE/?SIZE_TYPE>>.
+
+
+encode_events(Es) ->
+    << << (encode_event(E))/binary >> || E <- Es >>.
+
+encode_event({T, E}) ->
+    B = term_to_binary(E),
+    <<T:?ETIME_SIZE/?SIZE_TYPE, (byte_size(B)):?DATA_SS/?SIZE_TYPE, B/binary>>.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -299,7 +320,6 @@ encode(flush) ->
 
 -spec decode(binary()) ->
                     tcp_message().
-
 decode(<<?BUCKETS>>) ->
     buckets;
 
@@ -351,7 +371,19 @@ decode(<<?STREAM,
          Delay:?DELAY_SIZE/?SIZE_TYPE,
          _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
          Resolution:?TIME_SIZE/?TIME_TYPE>>) ->
-    {stream, Bucket, Delay, Resolution}.
+    {stream, Bucket, Delay, Resolution};
+
+decode(<<?EVENTS,
+         _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary,
+         Events/binary>>) ->
+    Events1 =
+        [ {T, binary_to_term(E)} ||
+            <<T:128/?SIZE_TYPE, _S:?DATA_SS/?SIZE_TYPE, E:_S/binary>> <= Events],
+    {events, Bucket, Events1};
+
+decode(<<?GET_EVENTS, _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary, Start:?ETIME_SIZE/?SIZE_TYPE, End:?ETIME_SIZE/?SIZE_TYPE>>) ->
+    {get_events, Bucket, Start, End}.
+
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -379,6 +411,7 @@ decode_stream(<<?SBATCH,
 
 decode_stream(Rest) when is_binary(Rest) ->
     {incomplete, Rest}.
+
 
 %%--------------------------------------------------------------------
 %% @doc

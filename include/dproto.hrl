@@ -13,6 +13,9 @@
 -define(LIST_PREFIX, 11).
 -define(TTL, 12).
 
+-define(EVENTS, 13).
+-define(GET_EVENTS, 14).
+
 %% number of bits used to encode the bucket size.
 %% => buckets can be 255 byte at most!
 -define(BUCKET_SS, 8).
@@ -48,6 +51,8 @@
 -define(TIME_SIZE, 64).
 %% The number of bits used for encoding the count.
 -define(COUNT_SIZE, 32).
+
+-define(ETIME_SIZE, 128).
 
 %% Number of bits used to encode the delay as part of the streaming protocol.
 -define(DELAY_SIZE, 8).

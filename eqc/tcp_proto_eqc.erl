@@ -83,6 +83,16 @@ resolution() ->
 ttl() ->
     oneof([infinity, mtime()]).
 
+get_events() ->
+    ?LET({S, E}, {pos_int(), pos_int()},
+         {get_events, bucket(), min(S, E), max(S, E)}).
+
+event() ->
+    {pos_int(), binary()}.
+
+events() ->
+    ?LET(L, list(event()), lists:sort(L)).
+
 tcp_msg() ->
     oneof([
            buckets,
@@ -91,7 +101,9 @@ tcp_msg() ->
            {info, bucket()},
            {ttl, bucket(), ttl()},
            {add, bucket(), pos_int(), pos_int(), non_neg_int()},
-           {delete, bucket()}
+           {delete, bucket()},
+           get_events(),
+           {events, bucket(), events()}
           ]).
 
 valid_delay(_Delay) when is_integer(_Delay), _Delay > 0, _Delay < 256 ->
