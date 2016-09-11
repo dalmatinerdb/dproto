@@ -50,6 +50,8 @@
         {list, Bucket :: binary(), Prefix :: binary()} |
         {info, Bucket :: binary()} |
         {delete, Bucket :: binary()} |
+        {events, [{pos_integer(), term()}]} |
+        events_end |
         {events, Bucket :: binary(), [{pos_integer(), term()}]} |
         {get_events,
          Bucket :: binary(),
@@ -301,7 +303,15 @@ encode({events, Bucket, Events}) ->
       EventsB/binary>>;
 
 encode({get_events, Bucket, Start, End}) ->
-    <<?GET_EVENTS, (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary, Start:?ETIME_SIZE/?SIZE_TYPE, End:?ETIME_SIZE/?SIZE_TYPE>>.
+    <<?GET_EVENTS, (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      Start:?ETIME_SIZE/?SIZE_TYPE, End:?ETIME_SIZE/?SIZE_TYPE>>;
+encode({events, Events}) ->
+    EventsB = encode_events(Events),
+    <<?REPLY_EVENTS, EventsB/binary>>;
+encode(events_end) ->
+    <<?END_EVENTS>>.
+
+
 
 
 encode_events(Es) ->
@@ -382,7 +392,16 @@ decode(<<?EVENTS,
     {events, Bucket, Events1};
 
 decode(<<?GET_EVENTS, _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary, Start:?ETIME_SIZE/?SIZE_TYPE, End:?ETIME_SIZE/?SIZE_TYPE>>) ->
-    {get_events, Bucket, Start, End}.
+    {get_events, Bucket, Start, End};
+
+decode(<<?REPLY_EVENTS, Events/binary>>) ->
+    Events1 =
+        [ {T, binary_to_term(E)} ||
+            <<T:128/?SIZE_TYPE, _S:?DATA_SS/?SIZE_TYPE, E:_S/binary>>
+                <= Events],
+    {events, Events1};
+decode(<<?END_EVENTS>>) ->
+    events_end.
 
 
 %%--------------------------------------------------------------------

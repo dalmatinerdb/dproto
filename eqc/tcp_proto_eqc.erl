@@ -103,6 +103,8 @@ tcp_msg() ->
            {add, bucket(), pos_int(), pos_int(), non_neg_int()},
            {delete, bucket()},
            get_events(),
+           events_end,
+           {events, events()},
            {events, bucket(), events()}
           ]).
 
