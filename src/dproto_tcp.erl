@@ -304,7 +304,7 @@ encode({events, Bucket, Events}) ->
 
 encode({get_events, Bucket, Start, End}) ->
     <<?GET_EVENTS, (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
-      Start:?ETIME_SIZE/?SIZE_TYPE, End:?ETIME_SIZE/?SIZE_TYPE>>;
+      Start:?TIME_SIZE/?TIME_TYPE, End:?TIME_SIZE/?TIME_TYPE>>;
 encode({events, Events}) ->
     EventsB = encode_events(Events),
     <<?REPLY_EVENTS, EventsB/binary>>;
@@ -312,14 +312,13 @@ encode(events_end) ->
     <<?END_EVENTS>>.
 
 
-
-
 encode_events(Es) ->
-    << << (encode_event(E))/binary >> || E <- Es >>.
+    {ok, B} = snappy:compress(<< << (encode_event(E))/binary >> || E <- Es >>),
+    B.
 
 encode_event({T, E}) ->
     B = term_to_binary(E),
-    <<T:?ETIME_SIZE/?SIZE_TYPE, (byte_size(B)):?DATA_SS/?SIZE_TYPE, B/binary>>.
+    <<T:?TIME_SIZE/?TIME_TYPE, (byte_size(B)):?DATA_SS/?SIZE_TYPE, B/binary>>.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -386,23 +385,24 @@ decode(<<?STREAM,
 decode(<<?EVENTS,
          _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary,
          Events/binary>>) ->
-    Events1 =
-        [ {T, binary_to_term(E)} ||
-            <<T:128/?SIZE_TYPE, _S:?DATA_SS/?SIZE_TYPE, E:_S/binary>> <= Events],
-    {events, Bucket, Events1};
+    {events, Bucket, decode_events(Events)};
 
-decode(<<?GET_EVENTS, _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary, Start:?ETIME_SIZE/?SIZE_TYPE, End:?ETIME_SIZE/?SIZE_TYPE>>) ->
+decode(<<?GET_EVENTS, _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary, Start:?TIME_SIZE/?TIME_TYPE, End:?TIME_SIZE/?TIME_TYPE>>) ->
     {get_events, Bucket, Start, End};
 
 decode(<<?REPLY_EVENTS, Events/binary>>) ->
-    Events1 =
-        [ {T, binary_to_term(E)} ||
-            <<T:128/?SIZE_TYPE, _S:?DATA_SS/?SIZE_TYPE, E:_S/binary>>
-                <= Events],
-    {events, Events1};
+    {events, decode_events(Events)};
+
 decode(<<?END_EVENTS>>) ->
     events_end.
 
+decode_events(<<>>) ->
+    [];
+decode_events(Compressed) ->
+    {ok, Events} = snappy:decompress(Compressed),
+    [ {T, binary_to_term(E)} ||
+        <<T:?TIME_SIZE/?TIME_TYPE, _S:?DATA_SS/?SIZE_TYPE, E:_S/binary>> 
+            <= Events].
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -418,14 +418,14 @@ decode_stream(<<?SWRITE, Rest/binary>>) ->
     {flush, Rest};
 
 decode_stream(<<?SENTRY,
-                Time:?TIME_SIZE/?SIZE_TYPE,
+                Time:?TIME_SIZE/?TIME_TYPE,
                 _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
                 _PointsSize:?DATA_SS/?SIZE_TYPE, Points:_PointsSize/binary,
                 Rest/binary>>) ->
     {{stream, Metric, Time, Points}, Rest};
 
 decode_stream(<<?SBATCH,
-                Time:?TIME_SIZE/?SIZE_TYPE, Rest/binary>>) ->
+                Time:?TIME_SIZE/?TIME_TYPE, Rest/binary>>) ->
     {{batch, Time}, Rest};
 
 decode_stream(Rest) when is_binary(Rest) ->

@@ -54,8 +54,6 @@
 %% The number of bits used for encoding the count.
 -define(COUNT_SIZE, 32).
 
--define(ETIME_SIZE, 128).
-
 %% Number of bits used to encode the delay as part of the streaming protocol.
 -define(DELAY_SIZE, 8).
 
