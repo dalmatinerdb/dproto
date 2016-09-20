@@ -57,6 +57,11 @@
          Bucket :: binary(),
          Start  :: pos_integer(),
          End    :: pos_integer()} |
+        {get_events,
+         Bucket :: binary(),
+         Start  :: pos_integer(),
+         End    :: pos_integer(),
+         Filter :: jsxd:filter_filters()} |
         {get,
          Bucket :: binary(),
          Metric :: binary(),
@@ -305,18 +310,24 @@ encode({events, Bucket, Events}) ->
 encode({get_events, Bucket, Start, End}) ->
     <<?GET_EVENTS, (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
       Start:?TIME_SIZE/?TIME_TYPE, End:?TIME_SIZE/?TIME_TYPE>>;
+encode({get_events, Bucket, Start, End, Filter}) ->
+    <<?GET_EVENTS_FILTERED,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      Start:?TIME_SIZE/?TIME_TYPE, End:?TIME_SIZE/?TIME_TYPE,
+      (jsxd_filter:serialize(Filter))/binary>>;
 encode({events, Events}) ->
     EventsB = encode_events(Events),
     <<?REPLY_EVENTS, EventsB/binary>>;
 encode(events_end) ->
     <<?END_EVENTS>>.
 
-
+-spec encode_events([{pos_integer(), term()}]) -> binary().
 encode_events(Es) ->
     {ok, B} = snappy:compress(<< << (encode_event(E))/binary >> || E <- Es >>),
     B.
 
-encode_event({T, E}) ->
+-spec encode_event({pos_integer(), term()}) -> <<_:64,_:_*8>>.
+encode_event({T, E}) when T > 0, is_integer(T) ->
     B = term_to_binary(E),
     <<T:?TIME_SIZE/?TIME_TYPE, (byte_size(B)):?DATA_SS/?SIZE_TYPE, B/binary>>.
 
@@ -389,6 +400,11 @@ decode(<<?EVENTS,
 
 decode(<<?GET_EVENTS, _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary, Start:?TIME_SIZE/?TIME_TYPE, End:?TIME_SIZE/?TIME_TYPE>>) ->
     {get_events, Bucket, Start, End};
+decode(<<?GET_EVENTS_FILTERED,
+         _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary,
+         Start:?TIME_SIZE/?TIME_TYPE, End:?TIME_SIZE/?TIME_TYPE,
+         Filter/binary>>) ->
+    {get_events, Bucket, Start, End, jsxd_filter:deserialize(Filter)};
 
 decode(<<?REPLY_EVENTS, Events/binary>>) ->
     {events, decode_events(Events)};

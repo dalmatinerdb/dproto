@@ -83,9 +83,22 @@ resolution() ->
 ttl() ->
     oneof([infinity, mtime()]).
 
+filter() ->
+    oneof(
+      [{'not', {'==', list(binary()), binary()}},
+       {'or', {'==', list(binary()), binary()},
+        {'==', list(binary()), binary()}},
+       {'==', list(binary()), binary()}]).
+
+filters() ->
+    list(filter()).
 get_events() ->
     ?LET({S, E}, {pos_int(), pos_int()},
-         {get_events, bucket(), min(S, E), max(S, E)}).
+         oneof(
+           [
+            {get_events, bucket(), min(S, E), max(S, E)},
+            {get_events, bucket(), min(S, E), max(S, E), filters()}
+           ])).
 
 event() ->
     {pos_int(), binary()}.
