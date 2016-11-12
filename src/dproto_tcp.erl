@@ -6,7 +6,7 @@
 -export([
          encode_metrics/1, decode_metrics/1,
          encode_buckets/1, decode_buckets/1,
-         encode_bucket_info/3, decode_bucket_info/1,
+         encode_bucket_info/4, decode_bucket_info/1,
          encode/1,
          decode/1,
          decode_stream/1,
@@ -147,22 +147,26 @@ decode_buckets(<<_Size:?BUCKETS_SS/?SIZE_TYPE, Buckets:_Size/binary>>) ->
 %% @end
 %%--------------------------------------------------------------------
 
--spec encode_bucket_info(pos_integer(), pos_integer(), ttl()) ->
-                            <<_:192>>.
+-spec encode_bucket_info(pos_integer(), pos_integer(),
+                         non_neg_integer(), ttl()) ->
+                            <<_:192>> | <<_:256>>.
 
-encode_bucket_info(Resolution, PPF, _TTL) when
+encode_bucket_info(Resolution, PPF, Grace, _TTL) when
       is_integer(Resolution), Resolution > 0,
       is_integer(PPF), PPF > 0,
+      is_integer(Grace), Grace >= 0,
       _TTL =:= infinity ->
     <<Resolution:?TIME_SIZE/?TIME_TYPE,
       PPF:?TIME_SIZE/?TIME_TYPE,
-      0:?TIME_SIZE/?TIME_TYPE>>;
-encode_bucket_info(Resolution, PPF, TTL) when
+      Grace:?TIME_SIZE/?TIME_TYPE>>;
+encode_bucket_info(Resolution, PPF, Grace, TTL) when
       is_integer(Resolution), Resolution > 0,
       is_integer(PPF), PPF > 0,
+      is_integer(Grace), Grace >= 0,
       is_integer(TTL), TTL > 0 ->
     <<Resolution:?TIME_SIZE/?TIME_TYPE,
       PPF:?TIME_SIZE/?TIME_TYPE,
+      Grace:?TIME_SIZE/?TIME_TYPE,
       TTL:?TIME_SIZE/?TIME_TYPE>>.
 
 %%--------------------------------------------------------------------
@@ -172,18 +176,33 @@ encode_bucket_info(Resolution, PPF, TTL) when
 %% @end
 %%--------------------------------------------------------------------
 
--spec decode_bucket_info(binary()) ->
-                            {pos_integer(), pos_integer(), ttl()}.
+-spec decode_bucket_info(<<_:192,_:_*64>>) ->
+                                #{
+                          resolution => pos_integer(),
+                          ppf => pos_integer(),
+                          grace => non_neg_integer(),
+                          ttl => ttl()
+                         }.
 
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
                      PPF:?TIME_SIZE/?TIME_TYPE,
+                     Grace:?TIME_SIZE/?TIME_TYPE>>) ->
+    #{
+       resolution => Resolution,
+       ppf => PPF,
+       grace => Grace,
+       ttl => infinity
+     };
+decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
+                     PPF:?TIME_SIZE/?TIME_TYPE,
+                     Grace:?TIME_SIZE/?TIME_TYPE,
                      TTL:?TIME_SIZE/?TIME_TYPE>>) ->
-    case TTL of
-        0 ->
-            {Resolution, PPF, infinity};
-        _ ->
-            {Resolution, PPF, TTL}
-    end.
+    #{
+       resolution => Resolution,
+       ppf => PPF,
+       grace => Grace,
+       ttl => TTL
+     }.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -324,6 +343,8 @@ encode(events_end) ->
 -spec encode_events([{pos_integer(), term()}]) -> binary().
 encode_events(Es) ->
     {ok, B} = snappy:compress(<< << (encode_event(E))/binary >> || E <- Es >>),
+    %% Damn you dailyzer!
+    true = is_binary(B),
     B.
 
 -spec encode_event({pos_integer(), term()}) -> <<_:64,_:_*8>>.

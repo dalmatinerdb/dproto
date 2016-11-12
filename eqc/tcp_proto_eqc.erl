@@ -276,18 +276,23 @@ prop_encode_decode_metrics() ->
             end).
 
 prop_encode_decode_bucket_info() ->
-    ?FORALL(Msg = {Res, PPF, TTL}, {resolution(), pos_int(), ttl()},
-            case valid_time(Res) of
-                true ->
-                    Encoded = dproto_tcp:encode_bucket_info(Res, PPF, TTL),
-                    Decoded = dproto_tcp:decode_bucket_info(Encoded),
-                    ?WHENFAIL(
-                       io:format(user,
-                                 "~p -> ~p -> ~p~n",
-                                 [Msg, Encoded, Decoded]),
-                       Msg =:= Decoded);
-                _ ->
-                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
+    ?FORALL({Res, PPF, Grace, TTL},
+            {resolution(), pos_int(), non_neg_int(), ttl()},
+            begin
+                Encoded = dproto_tcp:encode_bucket_info(Res, PPF,
+                                                        Grace, TTL),
+                Decoded = dproto_tcp:decode_bucket_info(Encoded),
+                Expected = #{
+                  resolution => Res,
+                  ppf => PPF,
+                  grace => Grace,
+                  ttl => TTL
+                 },
+                ?WHENFAIL(
+                   io:format(user,
+                             "~p -> ~p -> ~p~n",
+                             [Expected, Encoded, Decoded]),
+                   Expected =:= Decoded)
             end).
 
 prop_encode_decode_ttl() ->
