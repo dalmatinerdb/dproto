@@ -6,7 +6,7 @@
 -export([
          encode_metrics/1, decode_metrics/1,
          encode_buckets/1, decode_buckets/1,
-         encode_bucket_info/4, decode_bucket_info/1,
+         encode_bucket_info/1, decode_bucket_info/1,
          encode/1,
          decode/1,
          decode_stream/1,
@@ -16,15 +16,23 @@
 -ignore_xref([
          encode_metrics/1, decode_metrics/1,
          encode_buckets/1, decode_buckets/1,
-         encode_bucket_info/3, decode_bucket_info/1,
+         encode_bucket_info/1, decode_bucket_info/1,
          encode/1, decode/1,
          decode_stream/1,
          decode_batch/1
         ]).
 
--export_type([tcp_message/0, batch_message/0, stream_message/0]).
+-export_type([ttl/0, bucket_info/0, tcp_message/0,
+              batch_message/0, stream_message/0]).
 
 -type ttl() :: pos_integer() | infinity.
+
+-type bucket_info() :: #{
+                   resolution => pos_integer(),
+                   ppf        => pos_integer(),
+                   grace      => non_neg_integer(),
+                   ttl        => ttl()
+                  }.
 
 -type stream_message() ::
         flush |
@@ -147,19 +155,27 @@ decode_buckets(<<_Size:?BUCKETS_SS/?SIZE_TYPE, Buckets:_Size/binary>>) ->
 %% @end
 %%--------------------------------------------------------------------
 
--spec encode_bucket_info(pos_integer(), pos_integer(),
-                         non_neg_integer(), ttl()) ->
-                            <<_:192>> | <<_:256>>.
+-spec encode_bucket_info(bucket_info()) ->
+                                <<_:192>> | <<_:256>>.
 
-encode_bucket_info(Resolution, PPF, Grace, _TTL) when
+encode_bucket_info(#{
+                      resolution := Resolution,
+                      ppf        := PPF,
+                      grace      := Grace,
+                      ttl        := infinity
+                    }) when
       is_integer(Resolution), Resolution > 0,
       is_integer(PPF), PPF > 0,
-      is_integer(Grace), Grace >= 0,
-      _TTL =:= infinity ->
+      is_integer(Grace), Grace >= 0 ->
     <<Resolution:?TIME_SIZE/?TIME_TYPE,
       PPF:?TIME_SIZE/?TIME_TYPE,
       Grace:?TIME_SIZE/?TIME_TYPE>>;
-encode_bucket_info(Resolution, PPF, Grace, TTL) when
+encode_bucket_info(#{
+                      resolution := Resolution,
+                      ppf        := PPF,
+                      grace      := Grace,
+                      ttl        := TTL
+                    }) when
       is_integer(Resolution), Resolution > 0,
       is_integer(PPF), PPF > 0,
       is_integer(Grace), Grace >= 0,
@@ -177,21 +193,16 @@ encode_bucket_info(Resolution, PPF, Grace, TTL) when
 %%--------------------------------------------------------------------
 
 -spec decode_bucket_info(<<_:192,_:_*64>>) ->
-                                #{
-                          resolution => pos_integer(),
-                          ppf => pos_integer(),
-                          grace => non_neg_integer(),
-                          ttl => ttl()
-                         }.
+                                bucket_info().
 
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
                      PPF:?TIME_SIZE/?TIME_TYPE,
                      Grace:?TIME_SIZE/?TIME_TYPE>>) ->
     #{
        resolution => Resolution,
-       ppf => PPF,
-       grace => Grace,
-       ttl => infinity
+       ppf        => PPF,
+       grace      => Grace,
+       ttl        => infinity
      };
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
                      PPF:?TIME_SIZE/?TIME_TYPE,
@@ -199,9 +210,9 @@ decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
                      TTL:?TIME_SIZE/?TIME_TYPE>>) ->
     #{
        resolution => Resolution,
-       ppf => PPF,
-       grace => Grace,
-       ttl => TTL
+       ppf        => PPF,
+       grace      => Grace,
+       ttl        => TTL
      }.
 
 %%--------------------------------------------------------------------

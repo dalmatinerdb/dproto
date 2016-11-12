@@ -83,6 +83,15 @@ resolution() ->
 ttl() ->
     oneof([infinity, mtime()]).
 
+bucket_info() ->
+    #{
+       resolution => resolution(),
+       ppf        => pos_int(),
+       grace      => non_neg_int(),
+       ttl        => ttl()
+     }.
+
+
 filter() ->
     oneof(
       [{'not', {'==', list(binary()), binary()}},
@@ -275,24 +284,17 @@ prop_encode_decode_metrics() ->
                 L1 == L2
             end).
 
+
 prop_encode_decode_bucket_info() ->
-    ?FORALL({Res, PPF, Grace, TTL},
-            {resolution(), pos_int(), non_neg_int(), ttl()},
+    ?FORALL(Msg, bucket_info(),
             begin
-                Encoded = dproto_tcp:encode_bucket_info(Res, PPF,
-                                                        Grace, TTL),
+                Encoded = dproto_tcp:encode_bucket_info(Msg),
                 Decoded = dproto_tcp:decode_bucket_info(Encoded),
-                Expected = #{
-                  resolution => Res,
-                  ppf => PPF,
-                  grace => Grace,
-                  ttl => TTL
-                 },
                 ?WHENFAIL(
                    io:format(user,
                              "~p -> ~p -> ~p~n",
-                             [Expected, Encoded, Decoded]),
-                   Expected =:= Decoded)
+                             [Msg, Encoded, Decoded]),
+                   Msg =:= Decoded)
             end).
 
 prop_encode_decode_ttl() ->
