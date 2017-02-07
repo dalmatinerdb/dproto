@@ -81,7 +81,9 @@
         {stream,
          Bucket :: binary(),
          Delay :: pos_integer(),
-         Resolution :: pos_integer()}.
+         Resolution :: pos_integer()} |
+        {error,
+         Message :: binary()}.
 
 -type encoded_metric() :: <<_:?METRICS_SS, _:_*8>>.
 -type encoded_bucket() :: <<_:?BUCKETS_SS, _:_*8>>.
@@ -317,7 +319,6 @@ encode({batch, Metric, Point}) when
     <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
       Point:?DATA_SIZE/binary>>;
 
-
 encode({batch, Metric, Point}) when
       is_binary(Metric), byte_size(Metric) > 0,
       is_integer(Point) ->
@@ -349,7 +350,10 @@ encode({events, Events}) ->
     EventsB = encode_events(Events),
     <<?REPLY_EVENTS, EventsB/binary>>;
 encode(events_end) ->
-    <<?END_EVENTS>>.
+    <<?END_EVENTS>>;
+
+encode({error, Message}) ->
+    <<?ERROR, (byte_size(Message)):?ERROR_SIZE/?SIZE_TYPE, Message/binary>>.
 
 -spec encode_events([{pos_integer(), term()}]) -> binary().
 encode_events(Es) ->
@@ -442,14 +446,18 @@ decode(<<?REPLY_EVENTS, Events/binary>>) ->
     {events, decode_events(Events)};
 
 decode(<<?END_EVENTS>>) ->
-    events_end.
+    events_end;
+
+decode(<<?ERROR,
+         _Size:?ERROR_SIZE/?SIZE_TYPE, Message:_Size/binary>>) ->
+    {error, Message}.
 
 decode_events(<<>>) ->
     [];
 decode_events(Compressed) ->
     {ok, Events} = snappy:decompress(Compressed),
     [ {T, binary_to_term(E)} ||
-        <<T:?TIME_SIZE/?TIME_TYPE, _S:?DATA_SS/?SIZE_TYPE, E:_S/binary>> 
+        <<T:?TIME_SIZE/?TIME_TYPE, _S:?DATA_SS/?SIZE_TYPE, E:_S/binary>>
             <= Events].
 
 %%--------------------------------------------------------------------
