@@ -19,7 +19,7 @@
 -define(END_EVENTS, 16).
 -define(GET_EVENTS_FILTERED, 17).
 
--define(ERROR, 99).
+-define(ERROR, 255).
 
 %% number of bits used to encode the bucket size.
 %% => buckets can be 255 byte at most!
