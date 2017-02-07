@@ -91,7 +91,6 @@ bucket_info() ->
        ttl        => ttl()
      }.
 
-
 filter() ->
     oneof(
       [{'not', {'==', list(binary()), binary()}},
@@ -127,7 +126,8 @@ tcp_msg() ->
            get_events(),
            events_end,
            {events, events()},
-           {events, bucket(), events()}
+           {events, bucket(), events()},
+           {error, binary()}
           ]).
 
 valid_delay(_Delay) when is_integer(_Delay), _Delay > 0, _Delay < 256 ->
