@@ -115,10 +115,10 @@ get_events() ->
            ])).
 
 get_metrics() ->
+    Opts = [read_repair_opt(), r_opt()],
     oneof([
            {get, bucket(), metric(), mtime(), count()},
-           {get, bucket(), metric(), mtime(), count(),
-            read_repair_opt(), r_opt()}
+           {get, bucket(), metric(), mtime(), count(), Opts}
           ]).
 
 event() ->
