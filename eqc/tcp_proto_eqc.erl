@@ -87,7 +87,7 @@ read_repair_opt() ->
     {rr, oneof([default, on, off])}.
 
 r_opt() ->
-    {r, oneof([default, r, choose(1, 254)])}.
+    {r, oneof([default, n, choose(1, 254)])}.
 
 read_opt() ->
     oneof([read_repair_opt(), r_opt()]).
@@ -273,6 +273,43 @@ prop_encode_decode_batch_entry() ->
                                  "~p -> ~p -> ~p~n",
                                  [Msg, Encoded, Decoded]),
                        Msg =:= Decoded);
+                _ ->
+                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
+            end).
+prop_encode_decode_get() ->
+    ?FORALL(Msg = {get, _, _, Time, Count},
+            {get, bucket(), metric(), mtime(), count()},
+            case valid_time(Time) andalso valid_count(Count) of
+                true ->
+                    Encoded = dproto_tcp:encode(Msg),
+                    Decoded = dproto_tcp:decode(Encoded),
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       Msg =:= Decoded);
+                _ ->
+                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
+            end).
+
+prop_encode_decode_get_opts() ->
+    ?FORALL(Msg = {get, Bucket, Metric, Time, Count, _Opts},
+            {get, bucket(), metric(), mtime(), count(), read_opts()},
+            case valid_time(Time) andalso valid_count(Count) of
+                true ->
+                    Defaults = #{rr => default, r => default},
+                    Encoded = dproto_tcp:encode(Msg),
+                    Decoded = dproto_tcp:decode(Encoded),
+                    % Opts are augmented with defaults when not specified
+                    {get, _, _, _, _, Opts1} = Decoded,
+                    Opts2 = maps:to_list(
+                              maps:merge(Defaults, maps:from_list(Opts1))),
+                    Msg1 = {get, Bucket, Metric, Time, Count, Opts2},
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       Msg1 =:= Decoded);
                 _ ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).

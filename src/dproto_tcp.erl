@@ -457,7 +457,7 @@ decode(<<?GET,
          _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
          RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE>>) ->
-    Opts = [decode_rr(RR), decode_r(R)],
+    Opts = [decode_r(R), decode_rr(RR)],
     {get, Bucket, Metric, Time, Count, Opts};
 
 decode(<<?STREAM,
