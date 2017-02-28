@@ -83,6 +83,12 @@ resolution() ->
 ttl() ->
     oneof([infinity, mtime()]).
 
+read_repair_opt() ->
+    oneof([0, 1, 2]).
+
+r_opt() ->
+    ?SUCHTHAT(I, int(), I >= 0 andalso (I band 16#FF) =:= I).
+
 bucket_info() ->
     #{
        resolution => resolution(),
@@ -108,6 +114,13 @@ get_events() ->
             {get_events, bucket(), min(S, E), max(S, E), filters()}
            ])).
 
+get_metrics() ->
+    oneof([
+           {get, bucket(), metric(), mtime(), count()},
+           {get, bucket(), metric(), mtime(), count(),
+            read_repair_opt(), r_opt()}
+          ]).
+
 event() ->
     {pos_int(), binary()}.
 
@@ -124,6 +137,7 @@ tcp_msg() ->
            {add, bucket(), pos_int(), pos_int(), non_neg_int()},
            {delete, bucket()},
            get_events(),
+           get_metrics(),
            events_end,
            {events, events()},
            {events, bucket(), events()},
@@ -249,22 +263,6 @@ prop_encode_decode_batch_entry() ->
                 true ->
                     Encoded = dproto_tcp:encode(Msg),
                     {Decoded, <<>>} = dproto_tcp:decode_batch(Encoded),
-                    ?WHENFAIL(
-                       io:format(user,
-                                 "~p -> ~p -> ~p~n",
-                                 [Msg, Encoded, Decoded]),
-                       Msg =:= Decoded);
-                _ ->
-                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
-            end).
-
-prop_encode_decode_get() ->
-    ?FORALL(Msg = {get, _, _, Time, Count},
-            {get, bucket(), metric(), mtime(), count()},
-            case valid_time(Time) andalso valid_count(Count) of
-                true ->
-                    Encoded = dproto_tcp:encode(Msg),
-                    Decoded = dproto_tcp:decode(Encoded),
                     ?WHENFAIL(
                        io:format(user,
                                  "~p -> ~p -> ~p~n",

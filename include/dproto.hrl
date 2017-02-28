@@ -60,6 +60,14 @@
 %% Number of bits used to encode the delay as part of the streaming protocol.
 -define(DELAY_SIZE, 8).
 
+%% Number of bits needed to control consistency parameters for read operations
+-define(GET_OPT_SIZE, 8).
+
+%% Disable, enable or use the default read repair option for a get request.
+-define(RR_OFF, 0).
+-define(RR_ON, 1).
+-define(RR_DEFAULT, 2).
+
 %% The type used to encode sizes.
 -define(SIZE_TYPE, unsigned-integer).
 

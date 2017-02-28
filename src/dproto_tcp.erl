@@ -25,7 +25,11 @@
 -export_type([ttl/0, bucket_info/0, tcp_message/0,
               batch_message/0, stream_message/0]).
 
+
 -type ttl() :: pos_integer() | infinity.
+
+% Read repair option: 0 = off, 1 = on, 2 = default
+-type rr_opt() :: 0 | 1 | 2.
 
 -type bucket_info() :: #{
                    resolution => pos_integer(),
@@ -75,6 +79,13 @@
          Metric :: binary(),
          Time :: pos_integer(),
          Count :: pos_integer()} |
+        {get,
+         Bucket :: binary(),
+         Metric :: binary(),
+         Time :: pos_integer(),
+         Count :: pos_integer(),
+         RR :: rr_opt(),
+         R :: non_neg_integer()} |
         {stream,
          Bucket :: binary(),
          Delay :: pos_integer()} |
@@ -283,6 +294,22 @@ encode({get, Bucket, Metric, Time, Count}) when
       (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
       Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE>>;
 
+encode({get, Bucket, Metric, Time, Count, RR, R}) when
+      is_binary(Bucket), byte_size(Bucket) > 0,
+      is_binary(Metric), byte_size(Metric) > 0,
+      is_integer(Time), Time >= 0, (Time band 16#FFFFFFFFFFFFFFFF) =:= Time,
+      %% We only want positive numbers <  32 bit
+      is_integer(Count), Count > 0, (Count band 16#FFFFFFFF) =:= Count,
+      is_integer(R), R >= 0, (R band 16#FF) =:= R,
+      (RR =:= ?RR_DEFAULT orelse
+       RR =:= ?RR_OFF orelse
+       RR =:= ?RR_ON) ->
+    <<?GET,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
+      Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
+      RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE>>;
+
 encode({stream, Bucket, Delay}) when
       is_binary(Bucket), byte_size(Bucket) > 0,
       is_integer(Delay), Delay > 0, Delay < 256->
@@ -417,6 +444,13 @@ decode(<<?GET,
          _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE>>) ->
     {get, Bucket, Metric, Time, Count};
+
+decode(<<?GET,
+         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
+         _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
+         Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
+         RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE>>) ->
+    {get, Bucket, Metric, Time, Count, RR, R};
 
 decode(<<?STREAM,
          Delay:?DELAY_SIZE/?SIZE_TYPE,
