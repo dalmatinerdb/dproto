@@ -22,14 +22,22 @@
          decode_batch/1
         ]).
 
--export_type([ttl/0, bucket_info/0, tcp_message/0,
+-export_type([ttl/0, read_opts/0, read_repair_opt/0, read_r_opt/0,
+              bucket_info/0, tcp_message/0,
               batch_message/0, stream_message/0]).
 
 
 -type ttl() :: pos_integer() | infinity.
 
--type read_opts() :: [{rr, default} | {rr, off} | {rr, on} |
-                      {r, n} | {r, default} | {r, pos_integer()}].
+-type read_repair_opt() :: {rr, default} |
+                           {rr, off} |
+                           {rr, on}.
+
+-type read_r_opt() :: {r, n} |
+                      {r, default} |
+                      {r, 1..254}.
+
+-type read_opts() :: [read_repair_opt() | read_r_opt()].
 
 -type bucket_info() :: #{
                    resolution => pos_integer(),
@@ -306,8 +314,8 @@ encode({get, Bucket, Metric, Time, Count, Opts}) when
       (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
       (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
       Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
-      (encode_opt({rr, RROpt})):?GET_OPT_SIZE/?SIZE_TYPE,
-      (encode_opt({r, ROpt})):?GET_OPT_SIZE/?SIZE_TYPE>>;
+      (encode_rr(RROpt)):?GET_OPT_SIZE/?SIZE_TYPE,
+      (encode_r(ROpt)):?GET_OPT_SIZE/?SIZE_TYPE>>;
 
 encode({stream, Bucket, Delay}) when
       is_binary(Bucket), byte_size(Bucket) > 0,
@@ -449,7 +457,7 @@ decode(<<?GET,
          _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
          RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE>>) ->
-    Opts = [decode_opt({rr, RR}), decode_opt({r, R})],
+    Opts = [decode_rr(RR), decode_r(R)],
     {get, Bucket, Metric, Time, Count, Opts};
 
 decode(<<?STREAM,
@@ -546,35 +554,41 @@ decode_batch(Rest) ->
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Encodes/decodes parameter options for a read request
+%% Encodes/decodes read repair option for a read request
 %%
 %% @end
 %%--------------------------------------------------------------------
-encode_opt({rr, off}) ->
-    ?OPT_RR_OFF;
-encode_opt({rr, on}) ->
-    ?OPT_RR_ON;
-encode_opt({rr, default}) ->
-    ?OPT_RR_DEFAULT;
+encode_rr(off) ->
+    {rr, ?OPT_RR_OFF};
+encode_rr(on) ->
+    {rr, ?OPT_RR_ON};
+encode_rr(default) ->
+    {rr, ?OPT_RR_DEFAULT}.
 
-encode_opt({r, n}) ->
+decode_rr(?OPT_RR_OFF) ->
+    {rr, off};
+decode_rr(?OPT_RR_ON) ->
+    {rr, on};
+decode_rr(?OPT_RR_DEFAULT) ->
+    {rr, default}.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Encodes/decodes read quorum(R) option for a read request
+%%
+%% @end
+%%--------------------------------------------------------------------
+encode_r(n) ->
     ?OPT_R_N;
-encode_opt({r, default}) ->
+encode_r(default) ->
     ?OPT_R_DEFAULT;
-encode_opt({r, R})
+encode_r(R)
   when is_integer(R), R >= 0, (R band 16#FF) =:= R ->
     R.
 
-decode_opt({rr, ?OPT_RR_OFF}) ->
-    {rr, off};
-decode_opt({rr, ?OPT_RR_ON}) ->
-    {rr, on};
-decode_opt({rr, ?OPT_RR_DEFAULT}) ->
-    {rr, default};
-
-decode_opt({r, ?OPT_R_N}) ->
+decode_r(?OPT_R_N) ->
     {r, n};
-decode_opt({r, ?OPT_R_DEFAULT}) ->
+decode_r(?OPT_R_DEFAULT) ->
     {r, default};
-decode_opt({r, R}) ->
+decode_r(R) ->
     {r, R}.

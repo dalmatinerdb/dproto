@@ -84,10 +84,16 @@ ttl() ->
     oneof([infinity, mtime()]).
 
 read_repair_opt() ->
-    oneof([{rr, default}, {rr, on}, {rr, default}]).
+    {rr, oneof([default, on, off])}.
 
 r_opt() ->
-    oneof([{r, default}, {r, n}, {r, choose(1, 254)}]).
+    {r, oneof([default, r, choose(1, 254)])}.
+
+read_opt() ->
+    oneof([read_repair_opt(), r_opt()]).
+
+read_opts() ->
+    list(read_opt()).
 
 bucket_info() ->
     #{
