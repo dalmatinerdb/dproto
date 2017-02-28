@@ -84,10 +84,10 @@ ttl() ->
     oneof([infinity, mtime()]).
 
 read_repair_opt() ->
-    oneof([0, 1, 2]).
+    oneof([{rr, default}, {rr, on}, {rr, default}]).
 
 r_opt() ->
-    ?SUCHTHAT(I, int(), I >= 0 andalso (I band 16#FF) =:= I).
+    oneof([{r, default}, {r, n}, {r, choose(1, 254)}]).
 
 bucket_info() ->
     #{

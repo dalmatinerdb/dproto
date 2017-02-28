@@ -294,21 +294,21 @@ encode({get, Bucket, Metric, Time, Count}) when
       (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
       Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE>>;
 
-encode({get, Bucket, Metric, Time, Count, RR, R}) when
+encode({get, Bucket, Metric, Time, Count, Opts}) when
       is_binary(Bucket), byte_size(Bucket) > 0,
       is_binary(Metric), byte_size(Metric) > 0,
       is_integer(Time), Time >= 0, (Time band 16#FFFFFFFFFFFFFFFF) =:= Time,
       %% We only want positive numbers <  32 bit
       is_integer(Count), Count > 0, (Count band 16#FFFFFFFF) =:= Count,
-      is_integer(R), R >= 0, (R band 16#FF) =:= R,
-      (RR =:= ?RR_DEFAULT orelse
-       RR =:= ?RR_OFF orelse
-       RR =:= ?RR_ON) ->
+      is_list(Opts) ->
+    RROpt = proplists:get_value(rr, Opts, default),
+    ROpt = proplists:get_value(r, Opts, default),
     <<?GET,
       (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
       (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
       Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
-      RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE>>;
+      (encode_opt({rr, RROpt})):?GET_OPT_SIZE/?SIZE_TYPE,
+      (encode_opt({r, ROpt})):?GET_OPT_SIZE/?SIZE_TYPE>>;
 
 encode({stream, Bucket, Delay}) when
       is_binary(Bucket), byte_size(Bucket) > 0,
@@ -450,7 +450,8 @@ decode(<<?GET,
          _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
          RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE>>) ->
-    {get, Bucket, Metric, Time, Count, RR, R};
+    Opts = [decode_opt({rr, RR}), decode_opt({r, R})],
+    {get, Bucket, Metric, Time, Count, Opts};
 
 decode(<<?STREAM,
          Delay:?DELAY_SIZE/?SIZE_TYPE,
@@ -541,3 +542,38 @@ decode_batch(<<_MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
 
 decode_batch(Rest) ->
     {incomplete, Rest}.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Encodes/decodes parameter options for a read request
+%%
+%% @end
+%%--------------------------------------------------------------------
+encode_opt({rr, off}) ->
+    ?OPT_RR_OFF;
+encode_opt({rr, on}) ->
+    ?OPT_RR_ON;
+encode_opt({rr, default}) ->
+    ?OPT_RR_DEFAULT;
+
+encode_opt({r, n}) ->
+    ?OPT_R_N;
+encode_opt({r, default}) ->
+    ?OPT_R_DEFAULT;
+encode_opt({r, R})
+  when is_integer(R), R >= 0, (R band 16#FF) =:= R ->
+    R.
+
+decode_opt({rr, ?OPT_RR_OFF}) ->
+    {rr, off};
+decode_opt({rr, ?OPT_RR_ON}) ->
+    {rr, on};
+decode_opt({rr, ?OPT_RR_DEFAULT}) ->
+    {rr, default};
+
+decode_opt({r, ?OPT_R_N}) ->
+    {r, n};
+decode_opt({r, ?OPT_R_DEFAULT}) ->
+    {r, default};
+decode_opt({r, R}) ->
+    {r, R}.
