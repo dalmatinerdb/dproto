@@ -28,8 +28,8 @@
 
 -type ttl() :: pos_integer() | infinity.
 
-% Read repair option: 0 = off, 1 = on, 2 = default
--type rr_opt() :: 0 | 1 | 2.
+-type read_opts() :: [{rr, default} | {rr, off} | {rr, on} |
+                      {r, n} | {r, default} | {r, pos_integer()}].
 
 -type bucket_info() :: #{
                    resolution => pos_integer(),
@@ -84,8 +84,7 @@
          Metric :: binary(),
          Time :: pos_integer(),
          Count :: pos_integer(),
-         RR :: rr_opt(),
-         R :: non_neg_integer()} |
+         Opts :: read_opts()} |
         {stream,
          Bucket :: binary(),
          Delay :: pos_integer()} |
