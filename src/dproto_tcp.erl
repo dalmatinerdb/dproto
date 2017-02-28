@@ -559,11 +559,11 @@ decode_batch(Rest) ->
 %% @end
 %%--------------------------------------------------------------------
 encode_rr(off) ->
-    {rr, ?OPT_RR_OFF};
+    ?OPT_RR_OFF;
 encode_rr(on) ->
-    {rr, ?OPT_RR_ON};
+    ?OPT_RR_ON;
 encode_rr(default) ->
-    {rr, ?OPT_RR_DEFAULT}.
+    ?OPT_RR_DEFAULT.
 
 decode_rr(?OPT_RR_OFF) ->
     {rr, off};
