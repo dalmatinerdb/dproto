@@ -204,7 +204,7 @@ encode_bucket_info(#{
 %% @end
 %%--------------------------------------------------------------------
 
--spec decode_bucket_info(<<_:192,_:_*64>>) ->
+-spec decode_bucket_info(<<_:192, _:_*64>>) ->
                                 bucket_info().
 
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
@@ -388,7 +388,7 @@ encode_events(Es) ->
     true = is_binary(B),
     B.
 
--spec encode_event({pos_integer(), term()}) -> <<_:64,_:_*8>>.
+-spec encode_event({pos_integer(), term()}) -> <<_:64, _:_*8>>.
 encode_event({T, E}) when T > 0, is_integer(T) ->
     B = term_to_binary(E),
     <<T:?TIME_SIZE/?TIME_TYPE, (byte_size(B)):?DATA_SS/?SIZE_TYPE, B/binary>>.
@@ -468,7 +468,9 @@ decode(<<?EVENTS,
          Events/binary>>) ->
     {events, Bucket, decode_events(Events)};
 
-decode(<<?GET_EVENTS, _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary, Start:?TIME_SIZE/?TIME_TYPE, End:?TIME_SIZE/?TIME_TYPE>>) ->
+decode(<<?GET_EVENTS, _BSize:?BUCKET_SS/?SIZE_TYPE,
+         Bucket:_BSize/binary, Start:?TIME_SIZE/?TIME_TYPE,
+         End:?TIME_SIZE/?TIME_TYPE>>) ->
     {get_events, Bucket, Start, End};
 decode(<<?GET_EVENTS_FILTERED,
          _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary,
