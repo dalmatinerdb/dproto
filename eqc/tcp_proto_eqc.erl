@@ -293,18 +293,18 @@ prop_encode_decode_get() ->
             end).
 
 prop_encode_decode_get_opts() ->
-    ?FORALL(Msg = {get, Bucket, Metric, Time, Count, _Opts},
+    ?FORALL(Msg = {get, Bucket, Metric, Time, Count, Opts},
             {get, bucket(), metric(), mtime(), count(), read_opts()},
             case valid_time(Time) andalso valid_count(Count) of
                 true ->
-                    Defaults = #{rr => default, r => default},
                     Encoded = dproto_tcp:encode(Msg),
                     Decoded = dproto_tcp:decode(Encoded),
-                    % Opts are augmented with defaults when not specified
-                    {get, _, _, _, _, Opts1} = Decoded,
-                    Opts2 = maps:to_list(
-                              maps:merge(Defaults, maps:from_list(Opts1))),
-                    Msg1 = {get, Bucket, Metric, Time, Count, Opts2},
+
+                    R = proplists:get_value(r, Opts, default),
+                    RR = proplists:get_value(rr, Opts, default),
+                    Opts1 = [{r, R}, {rr, RR}],
+                    Msg1 = {get, Bucket, Metric, Time, Count, Opts1},
+
                     ?WHENFAIL(
                        io:format(user,
                                  "~p -> ~p -> ~p~n",
