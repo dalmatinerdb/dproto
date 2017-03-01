@@ -83,6 +83,18 @@ resolution() ->
 ttl() ->
     oneof([infinity, mtime()]).
 
+read_repair_opt() ->
+    {rr, oneof([default, on, off])}.
+
+r_opt() ->
+    {r, oneof([default, n, choose(1, 254)])}.
+
+read_opt() ->
+    oneof([read_repair_opt(), r_opt()]).
+
+read_opts() ->
+    list(read_opt()).
+
 bucket_info() ->
     #{
        resolution => resolution(),
@@ -257,7 +269,6 @@ prop_encode_decode_batch_entry() ->
                 _ ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).
-
 prop_encode_decode_get() ->
     ?FORALL(Msg = {get, _, _, Time, Count},
             {get, bucket(), metric(), mtime(), count()},
@@ -270,6 +281,24 @@ prop_encode_decode_get() ->
                                  "~p -> ~p -> ~p~n",
                                  [Msg, Encoded, Decoded]),
                        Msg =:= Decoded);
+                _ ->
+                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
+            end).
+
+prop_encode_decode_get_opts() ->
+    ?FORALL(Msg = {get, Bucket, Metric, Time, Count, InOpts},
+            {get, bucket(), metric(), mtime(), count(), read_opts()},
+            case valid_time(Time) andalso valid_count(Count) of
+                true ->
+                    Encoded = dproto_tcp:encode(Msg),
+                    Decoded = dproto_tcp:decode(Encoded),
+                    {get, Bucket, Metric, Time, Count, OutOpts} = Decoded,
+
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       compare_opts(InOpts, OutOpts));
                 _ ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).
@@ -311,3 +340,12 @@ prop_encode_decode_ttl() ->
                 _ ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).
+
+compare_opts(In, Out) ->
+    KnownKeys = ordsets:from_list([rr, r]),
+    UKeys = ordsets:from_list(proplists:get_keys(In ++ Out)),
+    OutKeys = ordsets:from_list(proplists:get_keys(Out)),
+    proplists:get_value(r, In, default) =:= proplists:get_value(r, Out, default) andalso
+    proplists:get_value(rr, In, default) =:= proplists:get_value(rr, Out, default) andalso
+    ordsets:is_subset(OutKeys, KnownKeys) andalso
+    UKeys =:= OutKeys.

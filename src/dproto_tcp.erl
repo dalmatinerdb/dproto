@@ -22,10 +22,22 @@
          decode_batch/1
         ]).
 
--export_type([ttl/0, bucket_info/0, tcp_message/0,
+-export_type([ttl/0, read_opts/0, read_repair_opt/0, read_r_opt/0,
+              bucket_info/0, tcp_message/0,
               batch_message/0, stream_message/0]).
 
+
 -type ttl() :: pos_integer() | infinity.
+
+-type read_repair_opt() :: {rr, default} |
+                           {rr, off} |
+                           {rr, on}.
+
+-type read_r_opt() :: {r, n} |
+                      {r, default} |
+                      {r, 1..254}.
+
+-type read_opts() :: [read_repair_opt() | read_r_opt()].
 
 -type bucket_info() :: #{
                    resolution => pos_integer(),
@@ -75,6 +87,12 @@
          Metric :: binary(),
          Time :: pos_integer(),
          Count :: pos_integer()} |
+        {get,
+         Bucket :: binary(),
+         Metric :: binary(),
+         Time :: pos_integer(),
+         Count :: pos_integer(),
+         Opts :: read_opts()} |
         {stream,
          Bucket :: binary(),
          Delay :: pos_integer()} |
@@ -194,7 +212,7 @@ encode_bucket_info(#{
 %% @end
 %%--------------------------------------------------------------------
 
--spec decode_bucket_info(<<_:192,_:_*64>>) ->
+-spec decode_bucket_info(<<_:192, _:_*64>>) ->
                                 bucket_info().
 
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
@@ -283,6 +301,22 @@ encode({get, Bucket, Metric, Time, Count}) when
       (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
       Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE>>;
 
+encode({get, Bucket, Metric, Time, Count, Opts}) when
+      is_binary(Bucket), byte_size(Bucket) > 0,
+      is_binary(Metric), byte_size(Metric) > 0,
+      is_integer(Time), Time >= 0, (Time band 16#FFFFFFFFFFFFFFFF) =:= Time,
+      %% We only want positive numbers <  32 bit
+      is_integer(Count), Count > 0, (Count band 16#FFFFFFFF) =:= Count,
+      is_list(Opts) ->
+    RROpt = proplists:get_value(rr, Opts, default),
+    ROpt = proplists:get_value(r, Opts, default),
+    <<?GET,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+      (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
+      Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
+      (encode_rr(RROpt)):?GET_OPT_SIZE/?SIZE_TYPE,
+      (encode_r(ROpt)):?GET_OPT_SIZE/?SIZE_TYPE>>;
+
 encode({stream, Bucket, Delay}) when
       is_binary(Bucket), byte_size(Bucket) > 0,
       is_integer(Delay), Delay > 0, Delay < 256->
@@ -362,7 +396,7 @@ encode_events(Es) ->
     true = is_binary(B),
     B.
 
--spec encode_event({pos_integer(), term()}) -> <<_:64,_:_*8>>.
+-spec encode_event({pos_integer(), term()}) -> <<_:64, _:_*8>>.
 encode_event({T, E}) when T > 0, is_integer(T) ->
     B = term_to_binary(E),
     <<T:?TIME_SIZE/?TIME_TYPE, (byte_size(B)):?DATA_SS/?SIZE_TYPE, B/binary>>.
@@ -418,6 +452,14 @@ decode(<<?GET,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE>>) ->
     {get, Bucket, Metric, Time, Count};
 
+decode(<<?GET,
+         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
+         _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
+         Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
+         RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE>>) ->
+    Opts = [decode_r(R), decode_rr(RR)],
+    {get, Bucket, Metric, Time, Count, Opts};
+
 decode(<<?STREAM,
          Delay:?DELAY_SIZE/?SIZE_TYPE,
          _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary>>) ->
@@ -434,7 +476,9 @@ decode(<<?EVENTS,
          Events/binary>>) ->
     {events, Bucket, decode_events(Events)};
 
-decode(<<?GET_EVENTS, _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary, Start:?TIME_SIZE/?TIME_TYPE, End:?TIME_SIZE/?TIME_TYPE>>) ->
+decode(<<?GET_EVENTS, _BSize:?BUCKET_SS/?SIZE_TYPE,
+         Bucket:_BSize/binary, Start:?TIME_SIZE/?TIME_TYPE,
+         End:?TIME_SIZE/?TIME_TYPE>>) ->
     {get_events, Bucket, Start, End};
 decode(<<?GET_EVENTS_FILTERED,
          _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary,
@@ -507,3 +551,44 @@ decode_batch(<<_MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
 
 decode_batch(Rest) ->
     {incomplete, Rest}.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Encodes/decodes read repair option for a read request
+%%
+%% @end
+%%--------------------------------------------------------------------
+encode_rr(off) ->
+    ?OPT_RR_OFF;
+encode_rr(on) ->
+    ?OPT_RR_ON;
+encode_rr(default) ->
+    ?OPT_RR_DEFAULT.
+
+decode_rr(?OPT_RR_OFF) ->
+    {rr, off};
+decode_rr(?OPT_RR_ON) ->
+    {rr, on};
+decode_rr(?OPT_RR_DEFAULT) ->
+    {rr, default}.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Encodes/decodes read quorum(R) option for a read request
+%%
+%% @end
+%%--------------------------------------------------------------------
+encode_r(n) ->
+    ?OPT_R_N;
+encode_r(default) ->
+    ?OPT_R_DEFAULT;
+encode_r(R)
+  when is_integer(R), R >= 0, (R band 16#FF) =:= R ->
+    R.
+
+decode_r(?OPT_R_N) ->
+    {r, n};
+decode_r(?OPT_R_DEFAULT) ->
+    {r, default};
+decode_r(R) ->
+    {r, R}.
