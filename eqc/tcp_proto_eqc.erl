@@ -120,12 +120,6 @@ get_events() ->
             {get_events, bucket(), min(S, E), max(S, E), filters()}
            ])).
 
-get_metrics() ->
-    oneof([
-           {get, bucket(), metric(), mtime(), count()},
-           {get, bucket(), metric(), mtime(), count(), read_opts()}
-          ]).
-
 event() ->
     {pos_int(), binary()}.
 
@@ -142,7 +136,6 @@ tcp_msg() ->
            {add, bucket(), pos_int(), pos_int(), non_neg_int()},
            {delete, bucket()},
            get_events(),
-           get_metrics(),
            events_end,
            {events, events()},
            {events, bucket(), events()},
