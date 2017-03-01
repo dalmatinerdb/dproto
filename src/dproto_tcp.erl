@@ -290,16 +290,8 @@ encode({delete, Bucket}) when is_binary(Bucket), byte_size(Bucket) > 0 ->
     <<?BUCKET_DELETE,
       (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
 
-encode({get, Bucket, Metric, Time, Count}) when
-      is_binary(Bucket), byte_size(Bucket) > 0,
-      is_binary(Metric), byte_size(Metric) > 0,
-      is_integer(Time), Time >= 0, (Time band 16#FFFFFFFFFFFFFFFF) =:= Time,
-      %% We only want positive numbers <  32 bit
-      is_integer(Count), Count > 0, (Count band 16#FFFFFFFF) =:= Count ->
-    <<?GET,
-      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
-      (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
-      Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE>>;
+encode({get, Bucket, Metric, Time, Count}) ->
+    encode({get, Bucket, Metric, Time, Count, []});
 
 encode({get, Bucket, Metric, Time, Count, Opts}) when
       is_binary(Bucket), byte_size(Bucket) > 0,
@@ -450,7 +442,8 @@ decode(<<?GET,
          _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
          _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE>>) ->
-    {get, Bucket, Metric, Time, Count};
+    Opts = [{r, default}, {rr, default}],
+    {get, Bucket, Metric, Time, Count, Opts};
 
 decode(<<?GET,
          _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
