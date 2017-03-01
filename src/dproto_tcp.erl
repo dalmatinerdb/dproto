@@ -357,7 +357,7 @@ encode({error, Message}) ->
 
 -spec encode_events([{pos_integer(), term()}]) -> binary().
 encode_events(Es) ->
-    {ok, B} = snappy:compress(<< << (encode_event(E))/binary >> || E <- Es >>),
+    {ok, B} = snappyer:compress(<< << (encode_event(E))/binary >> || E <- Es >>),
     %% Damn you dailyzer!
     true = is_binary(B),
     B.
@@ -455,7 +455,7 @@ decode(<<?ERROR,
 decode_events(<<>>) ->
     [];
 decode_events(Compressed) ->
-    {ok, Events} = snappy:decompress(Compressed),
+    {ok, Events} = snappyer:decompress(Compressed),
     [ {T, binary_to_term(E)} ||
         <<T:?TIME_SIZE/?TIME_TYPE, _S:?DATA_SS/?SIZE_TYPE, E:_S/binary>>
             <= Events].
