@@ -293,23 +293,19 @@ prop_encode_decode_get() ->
             end).
 
 prop_encode_decode_get_opts() ->
-    ?FORALL(Msg = {get, Bucket, Metric, Time, Count, Opts},
+    ?FORALL(Msg = {get, Bucket, Metric, Time, Count, InOpts},
             {get, bucket(), metric(), mtime(), count(), read_opts()},
             case valid_time(Time) andalso valid_count(Count) of
                 true ->
                     Encoded = dproto_tcp:encode(Msg),
                     Decoded = dproto_tcp:decode(Encoded),
-
-                    R = proplists:get_value(r, Opts, default),
-                    RR = proplists:get_value(rr, Opts, default),
-                    Opts1 = [{r, R}, {rr, RR}],
-                    Msg1 = {get, Bucket, Metric, Time, Count, Opts1},
+                    {get, Bucket, Metric, Time, Count, OutOpts} = Decoded,
 
                     ?WHENFAIL(
                        io:format(user,
                                  "~p -> ~p -> ~p~n",
                                  [Msg, Encoded, Decoded]),
-                       Msg1 =:= Decoded);
+                       compare_opts(InOpts, OutOpts));
                 _ ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).
@@ -351,3 +347,12 @@ prop_encode_decode_ttl() ->
                 _ ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).
+
+compare_opts(In, Out) ->
+    KnownKeys = ordsets:from_list([rr, r]),
+    UKeys = ordsets:from_list(proplists:get_keys(In ++ Out)),
+    OutKeys = ordsets:from_list(proplists:get_keys(Out)),
+    proplists:get_value(r, In, default) =:= proplists:get_value(r, Out, default) andalso
+    proplists:get_value(rr, In, default) =:= proplists:get_value(rr, Out, default) andalso
+    ordsets:is_subset(OutKeys, KnownKeys) andalso
+    UKeys =:= OutKeys.
