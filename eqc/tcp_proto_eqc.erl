@@ -269,18 +269,22 @@ prop_encode_decode_batch_entry() ->
                 _ ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).
+
 prop_encode_decode_get() ->
-    ?FORALL(Msg = {get, _, _, Time, Count},
+    ?FORALL(Msg = {get, Bucket, Metric, Time, Count},
             {get, bucket(), metric(), mtime(), count()},
             case valid_time(Time) andalso valid_count(Count) of
                 true ->
                     Encoded = dproto_tcp:encode(Msg),
                     Decoded = dproto_tcp:decode(Encoded),
+                    InOpts = [],
+                    {get, Bucket, Metric, Time, Count, OutOpts} = Decoded,
+
                     ?WHENFAIL(
                        io:format(user,
                                  "~p -> ~p -> ~p~n",
                                  [Msg, Encoded, Decoded]),
-                       Msg =:= Decoded);
+                       compare_opts(InOpts, OutOpts));
                 _ ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).
