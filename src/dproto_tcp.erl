@@ -412,7 +412,7 @@ encode({error, Message}) ->
 
 -spec encode_events([{pos_integer(), term()}]) -> binary().
 encode_events(Es) ->
-    {ok, B} = snappyer:compress(<< << (encode_event(E))/binary >> || E <- Es >>),
+    {ok, B} = snappyer:compress(<< <<(encode_event(E))/binary>> || E <- Es >>),
     %% Damn you dailyzer!
     true = is_binary(B),
     B.
@@ -609,7 +609,7 @@ encode_get_stream(done) ->
 %% @end
 %%--------------------------------------------------------------------
 
--spec decode_get_reply(binary()) ->
+-spec decode_get_reply(<<_:8, _:_*8>>) ->
                               {aggr, aggr() | undefined, get_stream_element()}.
 
 decode_get_reply(<<?GET_AGGR>>) ->
@@ -617,7 +617,7 @@ decode_get_reply(<<?GET_AGGR>>) ->
 decode_get_reply(<<?GET_AGGR, Aggr/binary>>) ->
     {aggr, decode_aggr(Aggr), {more, <<>>}};
 decode_get_reply(NoAggr) ->
-    Res = decode_get_reply(NoAggr),
+    Res = decode_get_stream(NoAggr, <<>>),
     {aggr, undefined, Res}.
 
 %%--------------------------------------------------------------------
