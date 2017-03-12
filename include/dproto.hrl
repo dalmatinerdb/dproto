@@ -21,6 +21,13 @@
 
 -define(ERROR, 255).
 
+%% Get reply section
+-define(GET_DONE, 0).
+-define(GET_DATA, 1).
+-define(GET_PADDED_OLD, 2).
+-define(GET_PADDED, 3).
+-define(GET_AGGR, 255).
+
 %% number of bits used to encode the bucket size.
 %% => buckets can be 255 byte at most!
 -define(BUCKET_SS, 8).

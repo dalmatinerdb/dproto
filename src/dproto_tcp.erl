@@ -9,6 +9,10 @@
          encode_bucket_info/1, decode_bucket_info/1,
          encode/1,
          decode/1,
+         encode_get_reply/1,
+         encode_get_stream/1,
+         decode_get_reply/1,
+         decode_get_stream/2,
          decode_stream/1,
          decode_batch/1
         ]).
@@ -18,6 +22,10 @@
          encode_buckets/1, decode_buckets/1,
          encode_bucket_info/1, decode_bucket_info/1,
          encode/1, decode/1,
+         encode_get_reply/1,
+         encode_get_stream/1,
+         decode_get_reply/1,
+         decode_get_stream/2,
          decode_stream/1,
          decode_batch/1
         ]).
@@ -40,7 +48,9 @@
                       {r, default} |
                       {r, 1..254}.
 
--type read_aggr_opt() :: {aggr, {binary(), integer()}}.
+-type aggr() :: {binary(), pos_integer()}.
+
+-type read_aggr_opt() :: {aggr, aggr()}.
 
 -type read_opts() :: [read_repair_opt() | read_r_opt() | read_aggr_opt()].
 
@@ -50,6 +60,10 @@
                    grace      => non_neg_integer(),
                    ttl        => ttl()
                   }.
+
+-type get_stream_element() ::
+        {more, binary()} |
+        {done, binary()}.
 
 -type stream_message() ::
         flush |
@@ -68,6 +82,13 @@
          Metric :: binary(),
          Points :: binary()}.
 
+%% Messages shorthands that can be encoded but will never be decoded.
+-type tcp_encode_message() ::
+        {get,
+         Bucket :: binary(),
+         Metric :: binary(),
+         Time :: pos_integer(),
+         Count :: pos_integer()}.
 -type tcp_message() ::
         buckets |
         {ttl, Bucket :: binary(), TTL :: ttl()} |
@@ -87,11 +108,6 @@
          Start  :: pos_integer(),
          End    :: pos_integer(),
          Filter :: jsxd:filter_filters()} |
-        {get,
-         Bucket :: binary(),
-         Metric :: binary(),
-         Time :: pos_integer(),
-         Count :: pos_integer()} |
         {get,
          Bucket :: binary(),
          Metric :: binary(),
@@ -247,7 +263,8 @@ decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
 %% @end
 %%--------------------------------------------------------------------
 
--spec encode(tcp_message() | stream_message() | batch_message()) ->
+-spec encode(tcp_encode_message() | tcp_message() | stream_message()
+             | batch_message()) ->
                     binary().
 encode(buckets) ->
     <<?BUCKETS>>;
@@ -566,6 +583,71 @@ decode_batch(<<_MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
 decode_batch(Rest) ->
     {incomplete, Rest}.
 
+
+encode_get_reply({aggr, undefined}) ->
+    <<?GET_AGGR>>;
+encode_get_reply({aggr, Aggr}) ->
+    AggrB = encode_aggr(Aggr),
+    <<?GET_AGGR, AggrB/binary>>.
+
+encode_get_stream({data, Data}) ->
+    {ok, Compressed} = snappyer:compress(Data),
+    <<?GET_DATA, Compressed/binary>>;
+encode_get_stream({data, Data, 0}) ->
+    {ok, Compressed} = snappyer:compress(Data),
+    <<?GET_DATA, Compressed/binary>>;
+encode_get_stream({data, Data, Padding}) ->
+    {ok, Compressed} = snappyer:compress(Data),
+    <<?GET_DATA, Padding:?COUNT_SIZE/?SIZE_TYPE, Compressed/binary>>;
+encode_get_stream(done) ->
+    <<?GET_DONE>>.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Decodes streamed/compressed the initial get reply.
+%%
+%% @end
+%%--------------------------------------------------------------------
+
+-spec decode_get_reply(binary()) ->
+                              {aggr, aggr() | undefined, get_stream_element()}.
+
+decode_get_reply(<<?GET_AGGR, Aggr/binary>>) ->
+    {aggr, decode_aggr(Aggr), {more, <<>>}};
+decode_get_reply(<<?GET_AGGR>>) ->
+    {aggr, undefined, {more, <<>>}};
+decode_get_reply(NoAggr) ->
+    Res = decode_get_reply(NoAggr),
+    {aggr, undefined, Res}.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Decodes streamed/compressed consecutive get replies.
+%%
+%% @end
+%%--------------------------------------------------------------------
+
+-spec decode_get_stream(binary(), binary()) ->
+                              get_stream_element().
+decode_get_stream(<<?GET_DONE>>, Acc) ->
+    {done, Acc};
+decode_get_stream(<<?GET_DATA, Compressed/binary>>, Acc) ->
+    {ok, Data} = snappyer:decompress(Compressed),
+    {more, <<Acc/binary, Data/binary>>};
+
+decode_get_stream(<<?GET_PADDED, Padding:?COUNT_SIZE/?SIZE_TYPE,
+                    Compressed/binary>>, Acc) ->
+    {ok, Data} = snappyer:decompress(Compressed),
+    {more, <<Acc/binary, Data/binary,
+             (mmath_bin:empty(Padding))/binary>>};
+
+%% Backwards compatibility
+decode_get_stream(<<?GET_PADDED_OLD, Padding:64/?SIZE_TYPE,
+                    Compressed/binary>>, Acc) ->
+    {ok, Data} = snappyer:decompress(Compressed),
+    {more, <<Acc/binary, Data/binary,
+             (mmath_bin:empty(Padding))/binary>>}.
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Encodes/decodes read repair option for a read request
@@ -607,9 +689,17 @@ decode_r(?OPT_R_DEFAULT) ->
 decode_r(R) when is_integer(R), R > 0 ->
     R.
 
-encode_aggr({Name, Count})
-  when is_binary(Name), byte_size(Name) < 255 ->
-    <<(byte_size(Name)), Name/binary, Count:64>>.
+-type aggr_bin() :: <<_:40,_:_*8>>.
 
-decode_aggr(<<NameS, Name:NameS/binary, Count:64>>) ->
+-spec encode_aggr(aggr()) -> aggr_bin().
+encode_aggr({Name, Count})
+  when is_binary(Name), byte_size(Name) =< 255,
+       Count > 0->
+    NameS = byte_size(Name),
+    <<NameS:?METRIC_ELEMENT_SS/?SIZE_TYPE, Name:NameS/binary,
+      Count:?COUNT_SIZE/?SIZE_TYPE>>.
+
+-spec decode_aggr(aggr_bin()) -> aggr().
+decode_aggr(<<NameS:?METRIC_ELEMENT_SS/?SIZE_TYPE, Name:NameS/binary,
+              Count:?COUNT_SIZE/?SIZE_TYPE>>) when Count > 0->
     {Name, Count}.
