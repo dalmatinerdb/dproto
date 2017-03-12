@@ -26,6 +26,9 @@
               bucket_info/0, tcp_message/0,
               batch_message/0, stream_message/0]).
 
+-ifdef(TEST).
+-export([encode_aggr/1, decode_aggr/1]).
+-endif.
 
 -type ttl() :: pos_integer() | infinity.
 
@@ -37,7 +40,9 @@
                       {r, default} |
                       {r, 1..254}.
 
--type read_opts() :: [read_repair_opt() | read_r_opt()].
+-type read_aggr_opt() :: {aggr, {binary(), integer()}}.
+
+-type read_opts() :: [read_repair_opt() | read_r_opt() | read_aggr_opt()].
 
 -type bucket_info() :: #{
                    resolution => pos_integer(),
@@ -302,12 +307,19 @@ encode({get, Bucket, Metric, Time, Count, Opts}) when
       is_list(Opts) ->
     RROpt = proplists:get_value(rr, Opts, default),
     ROpt = proplists:get_value(r, Opts, default),
-    <<?GET,
-      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
-      (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
-      Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
-      (encode_rr(RROpt)):?GET_OPT_SIZE/?SIZE_TYPE,
-      (encode_r(ROpt)):?GET_OPT_SIZE/?SIZE_TYPE>>;
+    Res = <<?GET,
+            (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
+            (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
+            Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
+            (encode_rr(RROpt)):?GET_OPT_SIZE/?SIZE_TYPE,
+            (encode_r(ROpt)):?GET_OPT_SIZE/?SIZE_TYPE>>,
+    case proplists:get_value(aggr, Opts) of
+        undefined ->
+            Res;
+        Aggr ->
+            AggrB = encode_aggr(Aggr),
+            <<Res/binary, AggrB/binary>>
+    end;
 
 encode({stream, Bucket, Delay}) when
       is_binary(Bucket), byte_size(Bucket) > 0,
@@ -450,7 +462,16 @@ decode(<<?GET,
          _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
          RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE>>) ->
-    Opts = [decode_r(R), decode_rr(RR)],
+    Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)}],
+    {get, Bucket, Metric, Time, Count, Opts};
+
+decode(<<?GET,
+         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
+         _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
+         Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
+         RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE,
+         AggrB/binary>>) ->
+    Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)}, {aggr, decode_aggr(AggrB)}],
     {get, Bucket, Metric, Time, Count, Opts};
 
 decode(<<?STREAM,
@@ -559,11 +580,11 @@ encode_rr(default) ->
     ?OPT_RR_DEFAULT.
 
 decode_rr(?OPT_RR_OFF) ->
-    {rr, off};
+    off;
 decode_rr(?OPT_RR_ON) ->
-    {rr, on};
+    on;
 decode_rr(?OPT_RR_DEFAULT) ->
-    {rr, default}.
+    default.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -580,8 +601,15 @@ encode_r(R)
     R.
 
 decode_r(?OPT_R_N) ->
-    {r, n};
+    n;
 decode_r(?OPT_R_DEFAULT) ->
-    {r, default};
-decode_r(R) ->
-    {r, R}.
+    default;
+decode_r(R) when is_integer(R), R > 0 ->
+    R.
+
+encode_aggr({Name, Count})
+  when is_binary(Name), byte_size(Name) < 255 ->
+    <<(byte_size(Name)), Name/binary, Count:64>>.
+
+decode_aggr(<<NameS, Name:NameS/binary, Count:64>>) ->
+    {Name, Count}.

@@ -4,6 +4,7 @@
 -compile(export_all).
 
 
+
 non_empty_binary() ->
     ?SUCHTHAT(B, ?LET(L, list(choose($a, $z)), list_to_binary(L)), B =/= <<>>).
 
