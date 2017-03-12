@@ -347,10 +347,39 @@ prop_encode_decode_ttl() ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).
 
+
 prop_encode_decode_aggr() ->
     ?FORALL({aggr, Aggr}, r_aggr(),
             Aggr == dproto_tcp:decode_aggr(
                       dproto_tcp:encode_aggr(Aggr))).
+
+prop_encode_decode_get_reply() ->
+    ?FORALL(Aggr = {aggr, A}, oneof([r_aggr(), {aggr, undefined}]),
+            begin
+                Encoded = dproto_tcp:encode_get_reply(Aggr),
+                {aggr, A, {more, <<>>}} == dproto_tcp:decode_get_reply(Encoded)
+            end).
+
+
+
+stream_msg() ->
+    oneof([{data, good_points()},
+           {data, good_points(), pos_int()}]).
+
+prop_encode_decode_get_stream() ->
+    ?FORALL(Stream, stream_msg(),
+            begin
+                Encoded = dproto_tcp:encode_get_stream(Stream),
+                {more, Out} =  dproto_tcp:decode_get_stream(Encoded, <<>>),
+                case Stream of
+                    {data, Data} ->
+                        Data =:= Out;
+                    {data, Data, Padding} ->
+                        Empty = mmath_bin:empty(Padding),
+                        Data1 = <<Data/binary, Empty/binary>>,
+                        Out =:= Data1
+                end
+            end).
 
 compare_opts(In, Out) ->
     KnownKeys = ordsets:from_list([rr, r, aggr]),

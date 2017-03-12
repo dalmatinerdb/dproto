@@ -598,7 +598,7 @@ encode_get_stream({data, Data, 0}) ->
     <<?GET_DATA, Compressed/binary>>;
 encode_get_stream({data, Data, Padding}) ->
     {ok, Compressed} = snappyer:compress(Data),
-    <<?GET_DATA, Padding:?COUNT_SIZE/?SIZE_TYPE, Compressed/binary>>;
+    <<?GET_PADDED, Padding:?COUNT_SIZE/?SIZE_TYPE, Compressed/binary>>;
 encode_get_stream(done) ->
     <<?GET_DONE>>.
 
@@ -612,10 +612,10 @@ encode_get_stream(done) ->
 -spec decode_get_reply(binary()) ->
                               {aggr, aggr() | undefined, get_stream_element()}.
 
-decode_get_reply(<<?GET_AGGR, Aggr/binary>>) ->
-    {aggr, decode_aggr(Aggr), {more, <<>>}};
 decode_get_reply(<<?GET_AGGR>>) ->
     {aggr, undefined, {more, <<>>}};
+decode_get_reply(<<?GET_AGGR, Aggr/binary>>) ->
+    {aggr, decode_aggr(Aggr), {more, <<>>}};
 decode_get_reply(NoAggr) ->
     Res = decode_get_reply(NoAggr),
     {aggr, undefined, Res}.
