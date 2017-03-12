@@ -689,7 +689,7 @@ decode_r(?OPT_R_DEFAULT) ->
 decode_r(R) when is_integer(R), R > 0 ->
     R.
 
--type aggr_bin() :: <<_:40,_:_*8>>.
+-type aggr_bin() :: <<_:40, _:_*8>>.
 
 -spec encode_aggr(aggr()) -> aggr_bin().
 encode_aggr({Name, Count})
