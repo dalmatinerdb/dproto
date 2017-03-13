@@ -18,17 +18,17 @@
         ]).
 
 -ignore_xref([
-         encode_metrics/1, decode_metrics/1,
-         encode_buckets/1, decode_buckets/1,
-         encode_bucket_info/1, decode_bucket_info/1,
-         encode/1, decode/1,
-         encode_get_reply/1,
-         encode_get_stream/1,
-         decode_get_reply/1,
-         decode_get_stream/2,
-         decode_stream/1,
-         decode_batch/1
-        ]).
+              encode_metrics/1, decode_metrics/1,
+              encode_buckets/1, decode_buckets/1,
+              encode_bucket_info/1, decode_bucket_info/1,
+              encode/1, decode/1,
+              encode_get_reply/1,
+              encode_get_stream/1,
+              decode_get_reply/1,
+              decode_get_stream/2,
+              decode_stream/1,
+              decode_batch/1
+             ]).
 
 -export_type([ttl/0, read_opts/0, read_repair_opt/0, read_r_opt/0,
               bucket_info/0, tcp_message/0,
@@ -628,7 +628,7 @@ decode_get_reply(NoAggr) ->
 %%--------------------------------------------------------------------
 
 -spec decode_get_stream(binary(), binary()) ->
-                              get_stream_element().
+                               get_stream_element().
 decode_get_stream(<<?GET_DONE>>, Acc) ->
     {done, Acc};
 decode_get_stream(<<?GET_DATA, Compressed/binary>>, Acc) ->
