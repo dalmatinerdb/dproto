@@ -1,4 +1,4 @@
 %-*-Erlang-*-
 {build, "./rebar3 as eqc eqc -n 0 -p no_test"}.
-{test_path, "_build/eqc/lib/mmath/ebin"}.
+{test_path, "_build/eqc/lib/dproto/ebin"}.
 {deps, "_build/eqc/lib/*/ebin"}.

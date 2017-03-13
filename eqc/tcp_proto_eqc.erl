@@ -89,8 +89,11 @@ read_repair_opt() ->
 r_opt() ->
     {r, oneof([default, n, choose(1, 254)])}.
 
+r_aggr() ->
+    {aggr, {binary(), pos_int()}}.
+
 read_opt() ->
-    oneof([read_repair_opt(), r_opt()]).
+    oneof([read_repair_opt(), r_opt(), r_aggr()]).
 
 read_opts() ->
     list(read_opt()).
@@ -141,7 +144,6 @@ tcp_msg() ->
            {events, bucket(), events()},
            {error, binary()}
           ]).
-
 valid_delay(_Delay) when is_integer(_Delay), _Delay > 0, _Delay < 256 ->
     true;
 valid_delay(_) ->
@@ -345,11 +347,48 @@ prop_encode_decode_ttl() ->
                     {'EXIT', _} = (catch dproto_tcp:encode(Msg))
             end).
 
+
+prop_encode_decode_aggr() ->
+    ?FORALL({aggr, Aggr}, r_aggr(),
+            Aggr == dproto_tcp:decode_aggr(
+                      dproto_tcp:encode_aggr(Aggr))).
+
+prop_encode_decode_get_reply() ->
+    ?FORALL(Aggr = {aggr, A}, oneof([r_aggr(), {aggr, undefined}]),
+            begin
+                Encoded = dproto_tcp:encode_get_reply(Aggr),
+                {aggr, A, {more, <<>>}} == dproto_tcp:decode_get_reply(Encoded)
+            end).
+
+
+
+stream_msg() ->
+    oneof([{data, good_points()},
+           {data, good_points(), pos_int()}]).
+
+prop_encode_decode_get_stream() ->
+    ?FORALL(Stream, stream_msg(),
+            begin
+                Encoded = dproto_tcp:encode_get_stream(Stream),
+                {more, Out} =  dproto_tcp:decode_get_stream(Encoded, <<>>),
+                case Stream of
+                    {data, Data} ->
+                        Data =:= Out;
+                    {data, Data, Padding} ->
+                        Empty = mmath_bin:empty(Padding),
+                        Data1 = <<Data/binary, Empty/binary>>,
+                        Out =:= Data1
+                end
+            end).
+
 compare_opts(In, Out) ->
-    KnownKeys = ordsets:from_list([rr, r]),
+    KnownKeys = ordsets:from_list([rr, r, aggr]),
     UKeys = ordsets:from_list(proplists:get_keys(In ++ Out)),
     OutKeys = ordsets:from_list(proplists:get_keys(Out)),
     proplists:get_value(r, In, default) =:= proplists:get_value(r, Out, default) andalso
     proplists:get_value(rr, In, default) =:= proplists:get_value(rr, Out, default) andalso
+    proplists:get_value(aggr, In, none) =:= proplists:get_value(aggr, Out, none) andalso
     ordsets:is_subset(OutKeys, KnownKeys) andalso
     UKeys =:= OutKeys.
+
+
