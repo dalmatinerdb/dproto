@@ -18,17 +18,17 @@
         ]).
 
 -ignore_xref([
-         encode_metrics/1, decode_metrics/1,
-         encode_buckets/1, decode_buckets/1,
-         encode_bucket_info/1, decode_bucket_info/1,
-         encode/1, decode/1,
-         encode_get_reply/1,
-         encode_get_stream/1,
-         decode_get_reply/1,
-         decode_get_stream/2,
-         decode_stream/1,
-         decode_batch/1
-        ]).
+              encode_metrics/1, decode_metrics/1,
+              encode_buckets/1, decode_buckets/1,
+              encode_bucket_info/1, decode_bucket_info/1,
+              encode/1, decode/1,
+              encode_get_reply/1,
+              encode_get_stream/1,
+              decode_get_reply/1,
+              decode_get_stream/2,
+              decode_stream/1,
+              decode_batch/1
+             ]).
 
 -export_type([ttl/0, read_opts/0, read_repair_opt/0, read_r_opt/0,
               bucket_info/0, tcp_message/0,
@@ -412,7 +412,7 @@ encode({error, Message}) ->
 
 -spec encode_events([{pos_integer(), term()}]) -> binary().
 encode_events(Es) ->
-    {ok, B} = snappyer:compress(<< <<(encode_event(E))/binary>> || E <- Es >>),
+    {ok, B} = snappiest:compress(<< <<(encode_event(E))/binary>> || E <- Es >>),
     %% Damn you dailyzer!
     true = is_binary(B),
     B.
@@ -530,7 +530,7 @@ decode(<<?ERROR,
 decode_events(<<>>) ->
     [];
 decode_events(Compressed) ->
-    {ok, Events} = snappyer:decompress(Compressed),
+    {ok, Events} = snappiest:decompress(Compressed),
     [ {T, binary_to_term(E)} ||
         <<T:?TIME_SIZE/?TIME_TYPE, _S:?DATA_SS/?SIZE_TYPE, E:_S/binary>>
             <= Events].
@@ -591,13 +591,13 @@ encode_get_reply({aggr, Aggr}) ->
     <<?GET_AGGR, AggrB/binary>>.
 
 encode_get_stream({data, Data}) ->
-    {ok, Compressed} = snappyer:compress(Data),
+    {ok, Compressed} = snappiest:compress(Data),
     <<?GET_DATA, Compressed/binary>>;
 encode_get_stream({data, Data, 0}) ->
-    {ok, Compressed} = snappyer:compress(Data),
+    {ok, Compressed} = snappiest:compress(Data),
     <<?GET_DATA, Compressed/binary>>;
 encode_get_stream({data, Data, Padding}) ->
-    {ok, Compressed} = snappyer:compress(Data),
+    {ok, Compressed} = snappiest:compress(Data),
     <<?GET_PADDED, Padding:?COUNT_SIZE/?SIZE_TYPE, Compressed/binary>>;
 encode_get_stream(done) ->
     <<?GET_DONE>>.
@@ -628,23 +628,23 @@ decode_get_reply(NoAggr) ->
 %%--------------------------------------------------------------------
 
 -spec decode_get_stream(binary(), binary()) ->
-                              get_stream_element().
+                               get_stream_element().
 decode_get_stream(<<?GET_DONE>>, Acc) ->
     {done, Acc};
 decode_get_stream(<<?GET_DATA, Compressed/binary>>, Acc) ->
-    {ok, Data} = snappyer:decompress(Compressed),
+    {ok, Data} = snappiest:decompress(Compressed),
     {more, <<Acc/binary, Data/binary>>};
 
 decode_get_stream(<<?GET_PADDED, Padding:?COUNT_SIZE/?SIZE_TYPE,
                     Compressed/binary>>, Acc) ->
-    {ok, Data} = snappyer:decompress(Compressed),
+    {ok, Data} = snappiest:decompress(Compressed),
     {more, <<Acc/binary, Data/binary,
              (mmath_bin:empty(Padding))/binary>>};
 
 %% Backwards compatibility
 decode_get_stream(<<?GET_PADDED_OLD, Padding:64/?SIZE_TYPE,
                     Compressed/binary>>, Acc) ->
-    {ok, Data} = snappyer:decompress(Compressed),
+    {ok, Data} = snappiest:decompress(Compressed),
     {more, <<Acc/binary, Data/binary,
              (mmath_bin:empty(Padding))/binary>>}.
 
