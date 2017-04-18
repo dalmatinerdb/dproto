@@ -19,7 +19,8 @@
 -define(END_EVENTS, 16).
 -define(GET_EVENTS_FILTERED, 17).
 
--define(ERROR, 255).
+-define(OT_WRAPPER, 254).
+-define(ERROR,      255).
 
 %% Get reply section
 -define(GET_DONE, 0).

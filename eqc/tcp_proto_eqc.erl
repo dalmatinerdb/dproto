@@ -129,7 +129,13 @@ event() ->
 events() ->
     ?LET(L, list(event()), lists:sort(L)).
 
-tcp_msg() ->
+otid() ->
+    oneof([{oneof([undefined, pos_int()]),
+            oneof([undefined, pos_int()])},
+           undefined]).
+
+
+tcp_msg_() ->
     oneof([
            buckets,
            {list, bucket()},
@@ -144,6 +150,13 @@ tcp_msg() ->
            {events, bucket(), events()},
            {error, binary()}
           ]).
+
+tcp_msg() ->
+    frequency(
+      [{100, tcp_msg_()},
+       {  5, {ot, otid(), tcp_msg_()}}]).
+
+
 valid_delay(_Delay) when is_integer(_Delay), _Delay > 0, _Delay < 256 ->
     true;
 valid_delay(_) ->

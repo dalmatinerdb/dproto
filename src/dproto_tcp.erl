@@ -5,6 +5,7 @@
 
 -export([
          encode_metrics/1, decode_metrics/1,
+         decode_ot/1,
          encode_buckets/1, decode_buckets/1,
          encode_bucket_info/1, decode_bucket_info/1,
          encode/1,
@@ -89,7 +90,11 @@
          Metric :: binary(),
          Time :: pos_integer(),
          Count :: pos_integer()}.
+-type otids() :: {undefined | pos_integer(), undefined | pos_integer()}
+               | undefined.
 -type tcp_message() ::
+        {ot, otids()} |
+        {ot, otids(), tcp_message()} |
         buckets |
         {ttl, Bucket :: binary(), TTL :: ttl()} |
         {list, Bucket :: binary()} |
@@ -266,6 +271,14 @@ decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
 -spec encode(tcp_encode_message() | tcp_message() | stream_message()
              | batch_message()) ->
                     binary().
+
+encode({ot, TIDs}) ->
+    <<?OT_WRAPPER, (encode_traceids(TIDs))/binary>> ;
+
+encode({ot, TIDs, Message}) ->
+    <<(encode({ot, TIDs}))/binary,
+      (encode(Message))/binary>>;
+
 encode(buckets) ->
     <<?BUCKETS>>;
 
@@ -429,8 +442,24 @@ encode_event({T, E}) when T > 0, is_integer(T) ->
 %% @end
 %%--------------------------------------------------------------------
 
+-spec decode_ot(binary()) ->
+                       {ot, otids(), binary()}.
+
+decode_ot(<<?OT_WRAPPER,
+            TraceID:64/unsigned-integer,
+            ParentID:64/unsigned-integer, Body/binary>>) ->
+    {ot, decode_traceids(TraceID, ParentID), Body};
+
+decode_ot(Body) when is_binary(Body) ->
+    {ot, undefined, Body}.
+
 -spec decode(binary()) ->
                     tcp_message().
+decode(<<?OT_WRAPPER,
+         TraceID:64/unsigned-integer,
+         ParentID:64/unsigned-integer, R/binary>>) ->
+    {ot, decode_traceids(TraceID, ParentID), decode(R)};
+
 decode(<<?BUCKETS>>) ->
     buckets;
 
@@ -703,3 +732,26 @@ encode_aggr({Name, Count})
 decode_aggr(<<NameS:?METRIC_ELEMENT_SS/?SIZE_TYPE, Name:NameS/binary,
               Count:?COUNT_SIZE/?SIZE_TYPE>>) when Count > 0->
     {Name, Count}.
+
+-spec zero_to_undef(non_neg_integer()) -> undefined | pos_integer().
+zero_to_undef(0) ->
+    undefined;
+zero_to_undef(N) when is_integer(N), N > 0 ->
+    N.
+
+undef_to_number(undefined) ->
+    0;
+undef_to_number(N) when N > 0 ->
+    N.
+
+encode_traceids({TraceID, ParentID}) ->
+    <<(undef_to_number(TraceID)):64/unsigned-integer,
+      (undef_to_number(ParentID)):64/unsigned-integer>>;
+encode_traceids(undefined) ->
+    <<(undef_to_number(undefined)):64/unsigned-integer,
+      (undef_to_number(undefined)):64/unsigned-integer>>.
+
+decode_traceids(0, 0) ->
+    undefined;
+decode_traceids(TraceID, ParentID) ->
+    {zero_to_undef(TraceID), zero_to_undef(ParentID)}.
