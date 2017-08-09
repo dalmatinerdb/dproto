@@ -1,8 +1,10 @@
 -module(dproto_eqc).
 
 -include_lib("eqc/include/eqc.hrl").
--compile(export_all).
 
+-export([prop_encode_decode_metric/0,
+         prop_encode_decode_metrics/0,
+         prop_encode_decode_buckets/0]).
 
 
 non_empty_binary() ->

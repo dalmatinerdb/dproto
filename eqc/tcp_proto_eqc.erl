@@ -2,7 +2,20 @@
 
 -include_lib("mmath/include/mmath.hrl").
 -include_lib("eqc/include/eqc.hrl").
--compile(export_all).
+-export([prop_encode_decode_general/0,
+         prop_encode_decode_stream/0,
+         prop_encode_decode_stream_resolution/0,
+         prop_encode_decode_stream_entry/0,
+         prop_encode_decode_batch/0,
+         prop_encode_decode_batch_entry/0,
+         prop_encode_decode_get/0,
+         prop_encode_decode_get_opts/0,
+         prop_encode_decode_metrics/0,
+         prop_encode_decode_bucket_info/0,
+         prop_encode_decode_ttl/0,
+         prop_encode_decode_aggr/0,
+         prop_encode_decode_get_reply/0,
+         prop_encode_decode_get_stream/0]).
 
 non_empty_binary() ->
     ?SUCHTHAT(B, ?LET(L, list(choose($a, $z)), list_to_binary(L)), B =/= <<>>).
@@ -16,25 +29,26 @@ bucket() ->
 metric() ->
     non_empty_binary().
 
-neg_or_zero() ->
-    ?SUCHTHAT(I, int(), I =< 0).
 
 good_delay() ->
     ?SUCHTHAT(D, int(), D > 0 andalso (D band 16#FF) =:= D ).
 
-bad_delay() ->
-    ?SUCHTHAT(D, int(), D =< 0 orelse (D band 16#FF) =/= D).
+good_count() ->
+    choose(1, 16#FFFFFFFF).
 
--ifdef(MINI).
-delay() ->
-    good_delay().
--else.
-delay() ->
-    fault(bad_delay(), good_delay()).
--endif.
+good_time() ->
+    choose(1, 16#FFFFFFFFFFFFFFFF).
 
-pos_int() ->
-    ?SUCHTHAT(N, int(), N > 0).
+good_point() ->
+    ?LET(Point, int(), mmath_bin:from_list([Point])).
+
+good_points() ->
+    ?LET(Points, list(int()), mmath_bin:from_list(Points)).
+
+%% We only can use fault on non eqc-mini
+-ifndef(MINI).
+neg_or_zero() ->
+    ?SUCHTHAT(I, int(), I =< 0).
 
 bad_count() ->
     oneof([
@@ -42,62 +56,56 @@ bad_count() ->
            choose(16#FFFFFFFF+1, 16#FFFFFFFF+1000)
           ]).
 
-good_count() ->
-    choose(1, 16#FFFFFFFF).
-
--ifdef(MINI).
-count() ->
-    good_count().
--else.
-count() ->
-    fault(bad_count(), good_count()).
--endif.
-
 bad_time() ->
     oneof([
            neg_or_zero(),
            choose(16#FFFFFFFFFFFFFFFF+1, 16#FFFFFFFFFFFFFFFF+1000)
           ]).
 
-good_time() ->
-    choose(1, 16#FFFFFFFFFFFFFFFF).
-
-
--ifdef(MINI).
-mtime() ->
-    good_time().
--else.
-mtime() ->
-    fault(bad_time(), good_time()).
--endif.
-
--ifdef(MINI).
-point() ->
-    good_point().
--else.
-point() ->
-    fault(bad_point(), good_point()).
--endif.
-
-good_point() ->
-    ?LET(Point, int(), mmath_bin:from_list([Point])).
-
 bad_point() ->
     ?SUCHTHAT(Points, non_empty_binary(), byte_size(Points) /= ?DATA_SIZE).
 
-good_points() ->
-    ?LET(Points, list(int()), mmath_bin:from_list(Points)).
+count() ->
+    fault(bad_count(), good_count()).
+
+bad_delay() ->
+    ?SUCHTHAT(D, int(), D =< 0 orelse (D band 16#FF) =/= D).
+
+delay() ->
+    fault(bad_delay(), good_delay()).
+
+mtime() ->
+    fault(bad_time(), good_time()).
+
+point() ->
+    fault(bad_point(), good_point()).
 
 bad_points() ->
     ?SUCHTHAT(Points, non_empty_binary(), byte_size(Points) rem ?DATA_SIZE =/= 0).
 
--ifdef(MINI).
-points() ->
-    good_points().
--else.
 points() ->
     fault(bad_points(), good_points()).
+-else.
+delay() ->
+    good_delay().
+
+count() ->
+    good_count().
+
+mtime() ->
+    good_time().
+
+point() ->
+    good_point().
+
+points() ->
+    good_points().
 -endif.
+
+
+pos_int() ->
+    ?SUCHTHAT(N, int(), N > 0).
+
 
 non_neg_int() ->
     ?SUCHTHAT(I, int(), I >= 0).
