@@ -9,3 +9,7 @@ deps
 doc
 _build/
 .rebar3
+TEST*
+compile_commands.json
+libs/
+rebar3.crashdump

@@ -25,8 +25,13 @@ good_delay() ->
 bad_delay() ->
     ?SUCHTHAT(D, int(), D =< 0 orelse (D band 16#FF) =/= D).
 
+-ifdef(MINI).
+delay() ->
+    good_delay().
+-else.
 delay() ->
     fault(bad_delay(), good_delay()).
+-endif.
 
 pos_int() ->
     ?SUCHTHAT(N, int(), N > 0).
@@ -40,9 +45,13 @@ bad_count() ->
 good_count() ->
     choose(1, 16#FFFFFFFF).
 
+-ifdef(MINI).
+count() ->
+    good_count().
+-else.
 count() ->
     fault(bad_count(), good_count()).
-
+-endif.
 
 bad_time() ->
     oneof([
@@ -53,11 +62,22 @@ bad_time() ->
 good_time() ->
     choose(1, 16#FFFFFFFFFFFFFFFF).
 
+
+-ifdef(MINI).
+mtime() ->
+    good_time().
+-else.
 mtime() ->
     fault(bad_time(), good_time()).
+-endif.
 
+-ifdef(MINI).
+point() ->
+    good_point().
+-else.
 point() ->
     fault(bad_point(), good_point()).
+-endif.
 
 good_point() ->
     ?LET(Point, int(), mmath_bin:from_list([Point])).
@@ -71,8 +91,13 @@ good_points() ->
 bad_points() ->
     ?SUCHTHAT(Points, non_empty_binary(), byte_size(Points) rem ?DATA_SIZE =/= 0).
 
+-ifdef(MINI).
+points() ->
+    good_points().
+-else.
 points() ->
     fault(bad_points(), good_points()).
+-endif.
 
 non_neg_int() ->
     ?SUCHTHAT(I, int(), I >= 0).
@@ -221,10 +246,10 @@ prop_encode_decode_stream() ->
             end).
 
 prop_encode_decode_stream_resolution() ->
-    ?FORALL(Msg = {stream, _, Delay, Res},
-            {stream, bucket(), delay(), resolution()},
+    ?FORALL(Msg = {stream, _, Delay},
+            {stream, bucket(), delay()},
 
-            case valid_delay(Delay) andalso valid_time(Res) of
+            case valid_delay(Delay) of
                 true ->
                     Encoded = dproto_tcp:encode(Msg),
                     Decoded = dproto_tcp:decode(Encoded),
@@ -403,5 +428,3 @@ compare_opts(In, Out) ->
     proplists:get_value(aggr, In, none) =:= proplists:get_value(aggr, Out, none) andalso
     ordsets:is_subset(OutKeys, KnownKeys) andalso
     UKeys =:= OutKeys.
-
-
