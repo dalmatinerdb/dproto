@@ -155,9 +155,12 @@ events() ->
     ?LET(L, list(event()), lists:sort(L)).
 
 otid() ->
-    oneof([{oneof([undefined, pos_int()]),
-            oneof([undefined, pos_int()])},
-           undefined]).
+    ?SUCHTHAT(M,
+              oneof([{oneof([undefined, pos_int()]),
+                      oneof([undefined, pos_int()])},
+                     undefined]),
+                    M =/= {undefined, undefined}
+                   ).
 
 
 tcp_msg_() ->
