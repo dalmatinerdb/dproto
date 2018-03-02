@@ -4,6 +4,8 @@
 -define(BUCKETS, 3).
 -define(STREAM, 4).
 
+
+
 -define(SENTRY, 5).
 -define(SWRITE, 6).
 -define(BUCKET_INFO, 7).
@@ -18,6 +20,10 @@
 -define(REPLY_EVENTS, 15).
 -define(END_EVENTS, 16).
 -define(GET_EVENTS_FILTERED, 17).
+
+
+-define(STREAMv2, 18).
+
 
 -define(OT_WRAPPER, 254).
 -define(ERROR,      255).

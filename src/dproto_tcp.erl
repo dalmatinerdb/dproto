@@ -122,6 +122,10 @@
         {stream,
          Bucket :: binary(),
          Delay :: pos_integer()} |
+        {stream_v2,
+         Bucket :: binary(),
+         Delay :: pos_integer(),
+         HPTS :: boolean()} |
         {error,
          Message :: binary()}.
 
@@ -355,6 +359,23 @@ encode({stream, Bucket, Delay}) when
       (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
 
 
+encode({stream_v2, Bucket, Delay, true}) when
+      is_binary(Bucket), byte_size(Bucket) > 0,
+      is_integer(Delay), Delay > 0, Delay < 256->
+    <<?STREAMv2,
+      1,
+      Delay:?DELAY_SIZE/?SIZE_TYPE,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
+
+encode({stream_v2, Bucket, Delay, false}) when
+      is_binary(Bucket), byte_size(Bucket) > 0,
+      is_integer(Delay), Delay > 0, Delay < 256->
+    <<?STREAMv2,
+      0,
+      Delay:?DELAY_SIZE/?SIZE_TYPE,
+      (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary>>;
+
+
 encode({stream, Metric, Time, Points}) when
       is_binary(Metric), byte_size(Metric) > 0,
       is_binary(Points), byte_size(Points) rem ?DATA_SIZE == 0,
@@ -512,6 +533,18 @@ decode(<<?STREAM,
          Delay:?DELAY_SIZE/?SIZE_TYPE,
          _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary>>) ->
     {stream, Bucket, Delay};
+
+decode(<<?STREAMv2,
+         1,
+         Delay:?DELAY_SIZE/?SIZE_TYPE,
+         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary>>) ->
+    {stream_v2, Bucket, Delay, true};
+
+decode(<<?STREAMv2,
+         0,
+         Delay:?DELAY_SIZE/?SIZE_TYPE,
+         _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary>>) ->
+    {stream_v2, Bucket, Delay, false};
 
 decode(<<?EVENTS,
          _BSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BSize/binary,

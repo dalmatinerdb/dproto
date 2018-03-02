@@ -15,7 +15,8 @@
          prop_encode_decode_ttl/0,
          prop_encode_decode_aggr/0,
          prop_encode_decode_get_reply/0,
-         prop_encode_decode_get_stream/0]).
+         prop_encode_decode_get_stream/0,
+         prop_encode_decode_streamv2/0]).
 
 non_empty_binary() ->
     ?SUCHTHAT(B, ?LET(L, list(choose($a, $z)), list_to_binary(L)), B =/= <<>>).
@@ -243,6 +244,21 @@ prop_encode_decode_general() ->
 
 prop_encode_decode_stream() ->
     ?FORALL(Msg = {stream, _, Delay}, {stream, bucket(), delay()},
+            case valid_delay(Delay) of
+                true ->
+                    Encoded = dproto_tcp:encode(Msg),
+                    Decoded = dproto_tcp:decode(Encoded),
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       Msg =:= Decoded);
+                _ ->
+                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
+            end).
+
+prop_encode_decode_streamv2() ->
+    ?FORALL(Msg = {stream_v2, _Bucket, Delay, _HPTS}, {stream_v2, bucket(), delay(), bool()},
             case valid_delay(Delay) of
                 true ->
                     Encoded = dproto_tcp:encode(Msg),
