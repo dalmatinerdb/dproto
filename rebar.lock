@@ -1,10 +1,12 @@
 {"1.1.0",
 [{<<"jsxd">>,{pkg,<<"jsxd">>,<<"0.2.4">>},0},
- {<<"mmath">>,{pkg,<<"mmath">>,<<"0.2.20">>},0},
+ {<<"mmath">>,
+  {git,"https://gitlab.com/Project-FiFo/DalmatinerDB/mmath.git",
+       {ref,"d6a6c393205e38aaf56ca42b4ec4fd1f0e519620"}},
+  0},
  {<<"snappiest">>,{pkg,<<"snappiest">>,<<"1.2.0">>},0}]}.
 [
 {pkg_hash,[
  {<<"jsxd">>, <<"C14114AFCA463F2D03D3FB6CC81FD51CDA8CA86A47E5AC3ABDF0CA572A73A413">>},
- {<<"mmath">>, <<"C07688D60E31C0794E2C50F8FE029747DE24A4E711A294169C69CCB3ACCB1294">>},
  {<<"snappiest">>, <<"25706FEBB5ECAEA900D879A89C6D967C8D1BF700F8546BEBD0DEA514A8CCBFB7">>}]}
 ].

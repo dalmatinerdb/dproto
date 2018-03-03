@@ -16,7 +16,8 @@
          prop_encode_decode_aggr/0,
          prop_encode_decode_get_reply/0,
          prop_encode_decode_get_stream/0,
-         prop_encode_decode_streamv2/0]).
+         prop_encode_decode_streamv2/0,
+         prop_encode_decode_hpts_batch_entry/0]).
 
 non_empty_binary() ->
     ?SUCHTHAT(B, ?LET(L, list(choose($a, $z)), list_to_binary(L)), B =/= <<>>).
@@ -43,6 +44,9 @@ good_time() ->
 good_point() ->
     ?LET(Point, int(), mmath_bin:from_list([Point])).
 
+good_hpts_point() ->
+    ?LET({T, Point}, {int(), int()}, mmath_hpts:from_list([{T, Point}])).
+
 good_points() ->
     ?LET(Points, list(int()), mmath_bin:from_list(Points)).
 
@@ -66,6 +70,10 @@ bad_time() ->
 bad_point() ->
     ?SUCHTHAT(Points, non_empty_binary(), byte_size(Points) /= ?DATA_SIZE).
 
+bad_hpts_point() ->
+    ?SUCHTHAT(Points, non_empty_binary(), byte_size(Points) /= ?DATA_SIZE* 2).
+
+
 count() ->
     fault(bad_count(), good_count()).
 
@@ -80,6 +88,9 @@ mtime() ->
 
 point() ->
     fault(bad_point(), good_point()).
+
+hpts_point() ->
+    fault(bad_hpts_point(), good_hpts_point()).
 
 bad_points() ->
     ?SUCHTHAT(Points, non_empty_binary(), byte_size(Points) rem ?DATA_SIZE =/= 0).
@@ -230,6 +241,13 @@ valid_point(_Point) when
 valid_point(_) ->
     false.
 
+valid_hpts_point(_Point) when
+      is_binary(_Point), byte_size(_Point) =:= ?DATA_SIZE * 2 ->
+    true;
+
+valid_hpts_point(_) ->
+    false.
+
 prop_encode_decode_general() ->
     ?FORALL(Msg, tcp_msg(),
             begin
@@ -328,6 +346,22 @@ prop_encode_decode_batch_entry() ->
                 true ->
                     Encoded = dproto_tcp:encode(Msg),
                     {Decoded, <<>>} = dproto_tcp:decode_batch(Encoded),
+                    ?WHENFAIL(
+                       io:format(user,
+                                 "~p -> ~p -> ~p~n",
+                                 [Msg, Encoded, Decoded]),
+                       Msg =:= Decoded);
+                _ ->
+                    {'EXIT', _} = (catch dproto_tcp:encode(Msg))
+            end).
+
+prop_encode_decode_hpts_batch_entry() ->
+    ?FORALL(Msg = {batch_hpts, _, Point},
+            {batch_hpts, metric(), hpts_point()},
+            case valid_hpts_point(Point) of
+                true ->
+                    Encoded = dproto_tcp:encode(Msg),
+                    {Decoded, <<>>} = dproto_tcp:decode_batch_hpts(Encoded),
                     ?WHENFAIL(
                        io:format(user,
                                  "~p -> ~p -> ~p~n",

@@ -15,6 +15,7 @@
          decode_get_reply/1,
          decode_get_stream/2,
          decode_stream/1,
+         decode_batch_hpts/1,
          decode_batch/1
         ]).
 
@@ -80,6 +81,9 @@
         incomplete |
         batch_end |
         {batch,
+         Metric :: binary(),
+         Points :: binary()} |
+        {batch_hpts,
          Metric :: binary(),
          Points :: binary()}.
 
@@ -396,6 +400,12 @@ encode({batch, Metric, Point}) when
     <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
       Point:?DATA_SIZE/binary>>;
 
+encode({batch_hpts, Metric, Point}) when
+      is_binary(Metric), byte_size(Metric) > 0,
+      is_binary(Point), byte_size(Point) == ?DATA_SIZE * 2  ->
+    <<(byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
+      Point:(?DATA_SIZE*2)/binary>>;
+
 encode({batch, Metric, Point}) when
       is_binary(Metric), byte_size(Metric) > 0,
       is_integer(Point) ->
@@ -613,6 +623,20 @@ decode_stream(Rest) when is_binary(Rest) ->
 %%
 %% @end
 %%--------------------------------------------------------------------
+
+
+-spec decode_batch_hpts(binary()) ->
+                          {batch_message(), binary()}.
+
+decode_batch_hpts(<<0:?METRIC_SS/?SIZE_TYPE, Rest/binary>>) ->
+    {batch_end, Rest};
+
+decode_batch_hpts(<<_MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
+               Point:(?DATA_SIZE*2)/binary, Rest/binary>>) ->
+    {{batch_hpts, Metric, Point}, Rest};
+
+decode_batch_hpts(Rest) ->
+    {incomplete, Rest}.
 
 -spec decode_batch(binary()) ->
                           {batch_message(), binary()}.
