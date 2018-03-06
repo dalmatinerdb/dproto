@@ -54,12 +54,13 @@
 
 -type read_aggr_opt() :: {aggr, aggr()}.
 
--type read_opts() :: [read_repair_opt() | read_r_opt() | read_aggr_opt()].
+-type read_opts() :: [read_repair_opt() | read_r_opt() | read_aggr_opt() | hpts].
 
 -type bucket_info() :: #{
                    resolution => pos_integer(),
                    ppf        => pos_integer(),
                    grace      => non_neg_integer(),
+                   hpts       => boolean(),
                    ttl        => ttl()
                   }.
 
@@ -212,19 +213,22 @@ encode_bucket_info(#{
                       resolution := Resolution,
                       ppf        := PPF,
                       grace      := Grace,
-                      ttl        := infinity
+                      ttl        := infinity,
+                      hpts       := HPTS
                     }) when
       is_integer(Resolution), Resolution > 0,
       is_integer(PPF), PPF > 0,
       is_integer(Grace), Grace >= 0 ->
     <<Resolution:?TIME_SIZE/?TIME_TYPE,
       PPF:?TIME_SIZE/?TIME_TYPE,
-      Grace:?TIME_SIZE/?TIME_TYPE>>;
+      Grace:?TIME_SIZE/?TIME_TYPE,
+      (encode_bool(HPTS))/binary>>;
 encode_bucket_info(#{
                       resolution := Resolution,
                       ppf        := PPF,
                       grace      := Grace,
-                      ttl        := TTL
+                      ttl        := TTL,
+                      hpts       := HPTS
                     }) when
       is_integer(Resolution), Resolution > 0,
       is_integer(PPF), PPF > 0,
@@ -233,6 +237,7 @@ encode_bucket_info(#{
     <<Resolution:?TIME_SIZE/?TIME_TYPE,
       PPF:?TIME_SIZE/?TIME_TYPE,
       Grace:?TIME_SIZE/?TIME_TYPE,
+      (encode_bool(HPTS))/binary,
       TTL:?TIME_SIZE/?TIME_TYPE>>.
 
 %%--------------------------------------------------------------------
@@ -247,21 +252,25 @@ encode_bucket_info(#{
 
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
                      PPF:?TIME_SIZE/?TIME_TYPE,
-                     Grace:?TIME_SIZE/?TIME_TYPE>>) ->
+                     Grace:?TIME_SIZE/?TIME_TYPE,
+                     HPTS>>) ->
     #{
        resolution => Resolution,
        ppf        => PPF,
        grace      => Grace,
+       hpts       => decode_bool(HPTS),
        ttl        => infinity
      };
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
                      PPF:?TIME_SIZE/?TIME_TYPE,
                      Grace:?TIME_SIZE/?TIME_TYPE,
+                     HPTS,
                      TTL:?TIME_SIZE/?TIME_TYPE>>) ->
     #{
        resolution => Resolution,
        ppf        => PPF,
        grace      => Grace,
+       hpts       => decode_bool(HPTS),
        ttl        => TTL
      }.
 
@@ -341,10 +350,12 @@ encode({get, Bucket, Metric, Time, Count, Opts}) when
       is_list(Opts) ->
     RROpt = proplists:get_value(rr, Opts, default),
     ROpt = proplists:get_value(r, Opts, default),
+    HPTSOpts = encode_bool(proplists:get_bool(hpts, Opts)),
     Res = <<?GET,
             (byte_size(Bucket)):?BUCKET_SS/?SIZE_TYPE, Bucket/binary,
             (byte_size(Metric)):?METRIC_SS/?SIZE_TYPE, Metric/binary,
             Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
+            HPTSOpts/binary,
             (encode_rr(RROpt)):?GET_OPT_SIZE/?SIZE_TYPE,
             (encode_r(ROpt)):?GET_OPT_SIZE/?SIZE_TYPE>>,
     case proplists:get_value(aggr, Opts) of
@@ -526,17 +537,31 @@ decode(<<?GET,
          _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
          _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
+         HPTS,
          RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE>>) ->
-    Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)}],
+    Opts0 = case decode_bool(HPTS) of
+                true ->
+                    [hpts];
+                false ->
+                    []
+            end,
+    Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)} | Opts0],
     {get, Bucket, Metric, Time, Count, Opts};
 
 decode(<<?GET,
          _BucketSize:?BUCKET_SS/?SIZE_TYPE, Bucket:_BucketSize/binary,
          _MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
+         HPTS,
          RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE,
          AggrB/binary>>) ->
-    Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)}, {aggr, decode_aggr(AggrB)}],
+    Opts0 = case decode_bool(HPTS) of
+                true ->
+                    [hpts];
+                false ->
+                    []
+            end,
+    Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)}, {aggr, decode_aggr(AggrB)} | Opts0],
     {get, Bucket, Metric, Time, Count, Opts};
 
 decode(<<?STREAM,
@@ -794,3 +819,13 @@ decode_traceids(0, 0) ->
     undefined;
 decode_traceids(TraceID, ParentID) ->
     {zero_to_undef(TraceID), zero_to_undef(ParentID)}.
+
+encode_bool(true) ->
+    <<01>>;
+encode_bool(false) ->
+    <<00>>.
+
+decode_bool(0) ->
+    false;
+decode_bool(1) ->
+    true.

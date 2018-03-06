@@ -138,7 +138,7 @@ r_aggr() ->
     {aggr, {binary(), pos_int()}}.
 
 read_opt() ->
-    oneof([read_repair_opt(), r_opt(), r_aggr()]).
+    oneof([read_repair_opt(), r_opt(), r_aggr(), hpts]).
 
 read_opts() ->
     list(read_opt()).
@@ -148,7 +148,8 @@ bucket_info() ->
        resolution => resolution(),
        ppf        => pos_int(),
        grace      => non_neg_int(),
-       ttl        => ttl()
+       ttl        => ttl(),
+       hpts       => bool()
      }.
 
 filter() ->
@@ -398,7 +399,6 @@ prop_encode_decode_get_opts() ->
                     Encoded = dproto_tcp:encode(Msg),
                     Decoded = dproto_tcp:decode(Encoded),
                     {get, Bucket, Metric, Time, Count, OutOpts} = Decoded,
-
                     ?WHENFAIL(
                        io:format(user,
                                  "~p -> ~p -> ~p~n",
@@ -481,11 +481,12 @@ prop_encode_decode_get_stream() ->
             end).
 
 compare_opts(In, Out) ->
-    KnownKeys = ordsets:from_list([rr, r, aggr]),
+    KnownKeys = ordsets:from_list([rr, r, aggr, hpts]),
     UKeys = ordsets:from_list(proplists:get_keys(In ++ Out)),
     OutKeys = ordsets:from_list(proplists:get_keys(Out)),
     proplists:get_value(r, In, default) =:= proplists:get_value(r, Out, default) andalso
-    proplists:get_value(rr, In, default) =:= proplists:get_value(rr, Out, default) andalso
-    proplists:get_value(aggr, In, none) =:= proplists:get_value(aggr, Out, none) andalso
-    ordsets:is_subset(OutKeys, KnownKeys) andalso
+        proplists:get_value(rr, In, default) =:= proplists:get_value(rr, Out, default) andalso
+        proplists:get_value(aggr, In, none) =:= proplists:get_value(aggr, Out, none) andalso
+        proplists:get_bool(hpts, In) =:= proplists:get_bool(hpts, Out) andalso
+        ordsets:is_subset(OutKeys, KnownKeys) andalso
     UKeys =:= OutKeys.
