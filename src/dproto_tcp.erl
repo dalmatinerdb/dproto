@@ -207,7 +207,7 @@ decode_buckets(<<_Size:?BUCKETS_SS/?SIZE_TYPE, Buckets:_Size/binary>>) ->
 %%--------------------------------------------------------------------
 
 -spec encode_bucket_info(bucket_info()) ->
-                                <<_:192>> | <<_:256>>.
+                                <<_:200>> | <<_:256>>.
 
 encode_bucket_info(#{
                       resolution := Resolution,
@@ -247,7 +247,7 @@ encode_bucket_info(#{
 %% @end
 %%--------------------------------------------------------------------
 
--spec decode_bucket_info(<<_:192, _:_*64>>) ->
+-spec decode_bucket_info(<<_:200, _:_*64>>) ->
                                 bucket_info().
 
 decode_bucket_info(<<Resolution:?TIME_SIZE/?TIME_TYPE,
@@ -561,7 +561,8 @@ decode(<<?GET,
                 false ->
                     []
             end,
-    Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)}, {aggr, decode_aggr(AggrB)} | Opts0],
+    Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)},
+            {aggr, decode_aggr(AggrB)} | Opts0],
     {get, Bucket, Metric, Time, Count, Opts};
 
 decode(<<?STREAM,
@@ -656,8 +657,9 @@ decode_stream(Rest) when is_binary(Rest) ->
 decode_batch_hpts(<<0:?METRIC_SS/?SIZE_TYPE, Rest/binary>>) ->
     {batch_end, Rest};
 
-decode_batch_hpts(<<_MetricSize:?METRIC_SS/?SIZE_TYPE, Metric:_MetricSize/binary,
-               Point:(?DATA_SIZE*2)/binary, Rest/binary>>) ->
+decode_batch_hpts(<<_MetricSize:?METRIC_SS/?SIZE_TYPE,
+                    Metric:_MetricSize/binary,
+                    Point:(?DATA_SIZE*2)/binary, Rest/binary>>) ->
     {{batch_hpts, Metric, Point}, Rest};
 
 decode_batch_hpts(Rest) ->
