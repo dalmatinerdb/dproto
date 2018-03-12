@@ -54,7 +54,8 @@
 
 -type read_aggr_opt() :: {aggr, aggr()}.
 
--type read_opts() :: [read_repair_opt() | read_r_opt() | read_aggr_opt() | hpts].
+-type read_opts() :: [read_repair_opt() | read_r_opt() |
+                      read_aggr_opt() | hpts].
 
 -type bucket_info() :: #{
                    resolution => pos_integer(),
