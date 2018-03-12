@@ -540,13 +540,7 @@ decode(<<?GET,
          Time:?TIME_SIZE/?SIZE_TYPE, Count:?COUNT_SIZE/?SIZE_TYPE,
          HPTS,
          RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE>>) ->
-    Opts0 = case decode_bool(HPTS) of
-                true ->
-                    [hpts];
-                false ->
-                    []
-            end,
-    Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)} | Opts0],
+    Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)} | decode_hpts(HPTS)],
     {get, Bucket, Metric, Time, Count, Opts};
 
 decode(<<?GET,
@@ -556,14 +550,8 @@ decode(<<?GET,
          HPTS,
          RR:?GET_OPT_SIZE/?SIZE_TYPE, R:?GET_OPT_SIZE/?SIZE_TYPE,
          AggrB/binary>>) ->
-    Opts0 = case decode_bool(HPTS) of
-                true ->
-                    [hpts];
-                false ->
-                    []
-            end,
     Opts = [{r, decode_r(R)}, {rr, decode_rr(RR)},
-            {aggr, decode_aggr(AggrB)} | Opts0],
+            {aggr, decode_aggr(AggrB)} | decode_hpts(HPTS)],
     {get, Bucket, Metric, Time, Count, Opts};
 
 decode(<<?STREAM,
@@ -832,3 +820,11 @@ decode_bool(0) ->
     false;
 decode_bool(1) ->
     true.
+
+decode_hpts(HPTS) ->
+    case decode_bool(HPTS) of
+        true ->
+            [hpts];
+        false ->
+            []
+    end.
