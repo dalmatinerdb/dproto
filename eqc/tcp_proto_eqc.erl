@@ -112,6 +112,8 @@ point() ->
 
 points() ->
     good_points().
+hpts_point() ->
+    good_hpts_point().
 -endif.
 
 
